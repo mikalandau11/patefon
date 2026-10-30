@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>פטיפון</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="פטיפון">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500&display=swap">
+<style>
+:root{--bg:#2a1320;--wood:#6b3a26;--wood2:#4a2518;--pink:#e8689d;--cream:#f6e6d6;--ink:#fff3ea;--mute:#a8a8b0;--red:#d9442a;color-scheme:dark;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#2a1320}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:linear-gradient(160deg,#ffffff0d 0%,#ffffff00 35%),radial-gradient(120% 70% at 50% -5%,#3a3a3e,#111113 50%,#000 100%);background-attachment:fixed;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:16px}
+.plinth{position:relative;width:min(88vw,380px);aspect-ratio:1;border-radius:22px;background:linear-gradient(145deg,#2b2b2e,#151517);box-shadow:0 24px 50px #0008}
+.bg{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:0}
+.bg::before{content:"";position:absolute;inset:-25%;background:var(--art,none) center/cover no-repeat;filter:blur(26px) saturate(1.25);transform:scale(1.1);transition:background-image .6s}
+.bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0000001a,#00000059);box-shadow:inset 0 2px 0 #ffffff26}
+.platter{z-index:1;position:absolute;left:6%;top:12%;width:82%;aspect-ratio:1;border-radius:50%;background:#15090f;box-shadow:0 0 0 5px #2c2c2c,0 6px 14px #0009;direction:ltr}
+.record{position:absolute;inset:4%;border-radius:50%;animation:spin 3.6s linear infinite;animation-play-state:paused;
+background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 85%,var(--v3,#060607) 100%)}
+.playing .record{animation-play-state:running}
+.record::after{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,#0000002e 0 1px,#ffffff0a 1px 2px,transparent 2px 3px)}
+.label{position:absolute;inset:32%;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 40% 35%,#e8573a,#b8321a);z-index:2;display:grid;place-items:center;box-shadow:0 0 0 3px #0003}
+.label img{width:100%;height:100%;object-fit:cover;display:block}
+.label::after{content:"";position:absolute;left:50%;top:50%;width:9%;aspect-ratio:1;border-radius:50%;background:#15090f;transform:translate(-50%,-50%)}
+.label b{font:italic 500 .8rem Fraunces,Georgia,serif;color:#7a2349;text-align:center;padding:0 14%;line-height:1.1}
+.sheen{position:absolute;inset:4%;border-radius:50%;z-index:3;pointer-events:none;mix-blend-mode:screen;opacity:.22;background:conic-gradient(from var(--a,0deg),#fff0,#fff 8%,#fff0 18%,#fff0 50%,#fff 58%,#fff0 68%)}
+.arm{position:absolute;right:10%;top:7%;width:10px;height:66%;transform-origin:50% 7px;transform:rotate(-12deg);transition:transform 1.2s cubic-bezier(.5,0,.2,1);z-index:5;direction:ltr}
+.playing .arm{transform:rotate(23deg)}
+.arm i{position:absolute;left:2px;top:0;width:6px;height:100%;border-radius:4px;background:linear-gradient(90deg,#9a9aa0,#fff 45%,#c9c9cf 60%,#808086);box-shadow:3px 6px 10px #000a}
+.arm::before{content:"";position:absolute;left:-14px;top:-14px;width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#b9b9bf 45%,#6e6e74);box-shadow:0 4px 10px #000a}
+.arm::after{content:"";position:absolute;left:-5px;bottom:-8px;width:20px;height:30px;border-radius:4px;background:linear-gradient(#3a3a3e,#111);box-shadow:0 0 0 1px #ffffff55,0 4px 8px #000c}
+.info{text-align:center;max-width:min(88vw,380px);min-height:84px}
+.info h1{font:italic 500 1.6rem/1.15 Fraunces,Georgia,serif;margin:0 0 4px;overflow-wrap:anywhere}
+.info p{margin:0;color:var(--mute)}
+.row{display:flex;gap:14px;align-items:center;direction:ltr}
+button{font:inherit;color:var(--ink);background:#ffffff14;border:1px solid #ffffff30;border-radius:999px;padding:10px 20px;cursor:pointer;min-height:44px}
+button:hover{background:#ffffff26}
+button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+button.main{background:var(--pink);border-color:var(--pink);color:#3a0e22;font-weight:600}
+small{color:var(--mute);max-width:min(88vw,380px);text-align:center;line-height:1.5}
+.ic{width:58px;height:58px;padding:0;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,#3c3c40,#0a0a0b 70%);border:1px solid #ffffff2a;box-shadow:0 8px 18px #000b,inset 0 1px 0 #ffffff3d}
+.ic:hover{background:radial-gradient(circle at 35% 28%,#4a4a4f,#111 70%)}
+.ic:active{transform:scale(.94)}
+.ic svg{width:42%;height:42%;fill:#fff}
+.ic.big{width:76px;height:76px}
+.ic.big svg{width:40%;height:40%}
+.connect{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;animation:pulse 1.6s ease-in-out infinite}
+.connect:hover{background:#e8573a}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d9442acc;opacity:1}50%{box-shadow:0 0 0 12px #d9442a00,0 0 22px #d9442a99;opacity:.82}}
+a[href*="netlify.com"],[class*="netlify-badge"],[id*="netlify-badge"],[class*="powered-by"],[id*="powered-by"]{display:none!important}
+button.link{background:none;border:none;color:var(--mute);text-decoration:underline;padding:4px;min-height:0;font-size:.9rem}
+.panel{max-width:min(88vw,380px);background:#ffffff12;border:1px solid #ffffff26;border-radius:16px;padding:14px 16px;line-height:1.6;font-size:.95rem}
+.panel ol{margin:6px 0 10px;padding-inline-start:20px}.panel textarea{width:100%;height:80px;margin-top:8px;font-size:.7rem;direction:ltr}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.connect{animation:none}.record{animation-duration:12s}.arm{transition:none}}
+</style>
+</head>
+<body>
+<div class="plinth" id="stage">
+  <div class="bg"></div>
+  <div class="platter">
+    <div class="record"><div class="label" id="label"></div></div>
+    <div class="sheen" id="sheen"></div>
+  </div>
+  <div class="arm"><i></i></div>
+</div>
+<div class="info"><h1 id="title"></h1><p id="artist"></p></div>
+<div class="row" id="row"></div>
+<small id="note"></small>
+<button class="link" id="wbtn" hidden>ווידג'ט למסך הבית</button>
+<div class="panel" id="wpanel" hidden></div>
+
+<script type="text/plain" id="wsrc">
+// Turntable widget for Scriptable
+const CLIENT_ID = "__CID__";
+const START_RT = "__RT__";
+const SITE = "__URL__";
+const KEY = "turntable_rt_" + START_RT.slice(-10);
+
+async function getToken() {
+  const rt = Keychain.contains(KEY) ? Keychain.get(KEY) : START_RT;
+  const r = new Request("https://accounts.spotify.com/api/token");
+  r.method = "POST";
+  r.headers = { "Content-Type": "application/x-www-form-urlencoded" };
+  r.body = "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt) + "&client_id=" + CLIENT_ID;
+  const d = await r.loadJSON();
+  if (!d.access_token) throw new Error("login");
+  Keychain.set(KEY, d.refresh_token || rt);
+  return d.access_token;
+}
+
+async function nowPlaying(at) {
+  const r = new Request("https://api.spotify.com/v1/me/player/currently-playing");
+  r.headers = { Authorization: "Bearer " + at };
+  const txt = await r.loadString();
+  if (!r.response || r.response.statusCode !== 200 || !txt) return null;
+  const d = JSON.parse(txt);
+  if (!d.item) return null;
+  const imgs = d.item.album ? d.item.album.images : [];
+  return {
+    name: d.item.name,
+    artist: d.item.artists.map(a => a.name).join(", "),
+    img: (imgs[1] || imgs[0] || {}).url,
+  };
+}
+
+// תקליט שחור עם העטיפה במרכז וזרוע כסופה
+function record(cover, size) {
+  const ctx = new DrawContext();
+  ctx.size = new Size(size, size);
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  const c = size / 2, R = size * 0.44, L = R * 0.38;
+  const black = new Color("#0c0c0d");
+  ctx.setFillColor(black);
+  ctx.fillEllipse(new Rect(c - R, c - R, 2 * R, 2 * R));
+  if (cover) {
+    ctx.drawImageInRect(cover, new Rect(c - L, c - L, 2 * L, 2 * L));
+    const w = L * 0.5; // טבעת שחורה שמעגלת את פינות העטיפה
+    ctx.setStrokeColor(black);
+    ctx.setLineWidth(w);
+    ctx.strokeEllipse(new Rect(c - L - w / 2, c - L - w / 2, 2 * L + w, 2 * L + w));
+  } else {
+    ctx.setFillColor(new Color("#e8689d"));
+    ctx.fillEllipse(new Rect(c - L, c - L, 2 * L, 2 * L));
+  }
+  ctx.setLineWidth(1);
+  ctx.setStrokeColor(new Color("#ffffff", 0.09));
+  for (let r = L * 1.55; r < R * 0.97; r += size * 0.02) {
+    ctx.strokeEllipse(new Rect(c - r, c - r, 2 * r, 2 * r));
+  }
+  const h = size * 0.018;
+  ctx.setFillColor(black);
+  ctx.fillEllipse(new Rect(c - h, c - h, 2 * h, 2 * h));
+  // זרוע
+  const px = size * 0.9, py = size * 0.1;
+  const arm = new Path();
+  arm.move(new Point(px, py));
+  arm.addLine(new Point(size * 0.7, size * 0.7));
+  ctx.addPath(arm);
+  ctx.setStrokeColor(new Color("#e4e4ea"));
+  ctx.setLineWidth(size * 0.028);
+  ctx.strokePath();
+  ctx.setFillColor(new Color("#c9c9cf"));
+  ctx.fillEllipse(new Rect(px - size * 0.065, py - size * 0.065, size * 0.13, size * 0.13));
+  ctx.setFillColor(new Color("#1d1d20"));
+  ctx.fillRect(new Rect(size * 0.665, size * 0.67, size * 0.07, size * 0.1));
+  return ctx.getImage();
+}
+
+// רקע: העטיפה מוקטנת ומוגדלת (נראה מטושטש) עם שכבה כהה
+function background(cover) {
+  const tiny = new DrawContext();
+  tiny.size = new Size(10, 10);
+  tiny.respectScreenScale = false;
+  tiny.drawImageInRect(cover, new Rect(0, 0, 10, 10));
+  const ctx = new DrawContext();
+  ctx.size = new Size(400, 400);
+  ctx.drawImageInRect(tiny.getImage(), new Rect(-40, -40, 480, 480));
+  ctx.setFillColor(new Color("#000000", 0.35));
+  ctx.fillRect(new Rect(0, 0, 400, 400));
+  return ctx.getImage();
+}
+
+async function build() {
+  const w = new ListWidget();
+  w.url = SITE;
+  w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
+  const g = new LinearGradient();
+  g.colors = [new Color("#3a1a2b"), new Color("#140a10")];
+  g.locations = [0, 1];
+  w.backgroundGradient = g;
+
+  let t = null, cover = null, msg = null;
+  try {
+    const at = await getToken();
+    t = await nowPlaying(at);
+    if (t && t.img) cover = await new Request(t.img).loadImage();
+  } catch (e) {
+    msg = "צריך להכין קוד חדש באתר";
+  }
+  if (cover) w.backgroundImage = background(cover);
+
+  const title = msg || (t ? t.name : "אין שיר מתנגן");
+  const sub = msg ? "" : (t ? t.artist : "הפעילי שיר בספוטיפיי");
+  const family = config.widgetFamily || "medium";
+
+  if (family === "small") {
+    w.setPadding(10, 10, 10, 10);
+    const row = w.addStack(); row.addSpacer();
+    const im = row.addImage(record(cover, 200)); im.imageSize = new Size(100, 100);
+    row.addSpacer();
+    w.addSpacer(4);
+    const tt = w.addText(title); tt.font = Font.boldSystemFont(12); tt.textColor = Color.white(); tt.lineLimit = 1; tt.centerAlignText();
+  } else {
+    w.setPadding(12, 14, 12, 14);
+    const row = w.addStack();
+    row.layoutHorizontally();
+    row.centerAlignContent();
+    const im = row.addImage(record(cover, 260)); im.imageSize = new Size(130, 130);
+    row.addSpacer(12);
+    const col = row.addStack();
+    col.layoutVertically();
+    const tt = col.addText(title); tt.font = Font.boldSystemFont(17); tt.textColor = Color.white(); tt.lineLimit = 2;
+    col.addSpacer(4);
+    const st = col.addText(sub); st.font = Font.systemFont(13); st.textColor = new Color("#ffffff", 0.75); st.lineLimit = 2;
+    row.addSpacer();
+  }
+  return w;
+}
+
+const widget = await build();
+if (config.runsInWidget) Script.setWidget(widget);
+else await widget.presentMedium();
+Script.complete();
+</script>
+<script>
+// ===== הגדרות: הדביקי כאן את ה-Client ID מספוטיפיי =====
+const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
+// =========================================================
+const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
+const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
+const $ = id => document.getElementById(id);
+const stage = $("stage"), row = $("row"), note = $("note");
+let connected = false, playing = false, lastTrack = "";
+
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+
+function setPlaying(p){ playing = p; stage.classList.toggle("playing", p); renderButtons(); }
+
+function setTrack(t){
+  if (t.name === lastTrack) return;
+  lastTrack = t.name;
+  $("title").textContent = t.name;
+  $("artist").textContent = t.artist;
+  stage.style.setProperty("--art", t.img ? 'url("' + t.img + '")' : "none");
+  if (t.img) vinyl(t.img); else setVinyl(0,0,.08);
+  const l = $("label");
+  l.innerHTML = t.img ? '<img alt="" crossorigin="anonymous" src="' + t.img + '">' : "";
+}
+
+// ---------- צבע התקליט מהעטיפה ----------
+function hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;
+  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return [h,s,l];}
+function setVinyl(h,s,l){const c=dl=>"hsl("+Math.round(h)+" "+Math.round(s*100)+"% "+Math.round(Math.max(l+dl,0)*100)+"%)";
+  stage.style.setProperty("--v1",c(0));stage.style.setProperty("--v2",c(-.06));stage.style.setProperty("--v3",c(-.16));}
+function vinyl(src){
+  const im = new Image(); im.crossOrigin = "anonymous";
+  im.onload = () => { try {
+    const c = document.createElement("canvas"); c.width = c.height = 40;
+    const x = c.getContext("2d"); x.drawImage(im,0,0,40,40);
+    const d = x.getImageData(0,0,40,40).data;
+    const bins = Array.from({length:24}, () => ({w:0,r:0,g:0,b:0,n:0})); let ar=0,ag=0,ab=0,an=0;
+    for (let i=0;i<d.length;i+=4){
+      const [h,s,l] = hsl(d[i],d[i+1],d[i+2]); ar+=d[i];ag+=d[i+1];ab+=d[i+2];an++;
+      if (l<.12 || l>.9 || s<.25) continue;
+      const B = bins[Math.floor(h/15)%24]; B.w+=s*Math.max(1-Math.abs(l-.5)*1.6,.05); B.r+=d[i]; B.g+=d[i+1]; B.b+=d[i+2]; B.n++;
+    }
+    const best = bins.reduce((a,b) => b.w>a.w ? b : a);
+    const col = best.n > an*.04 ? [best.r/best.n,best.g/best.n,best.b/best.n] : [ar/an,ag/an,ab/an];
+    const [h,s,l] = hsl(...col);
+    setVinyl(h, s, Math.min(Math.max(l,.18),.55));
+  } catch(e){ setVinyl(0,0,.08); } };
+  im.onerror = () => setVinyl(0,0,.08);
+  im.src = src;
+}
+
+// ---------- ווידג'ט (Scriptable) ----------
+let widgetScript = "";
+async function showWidget(rt){
+  const panel = $("wpanel"); panel.hidden = false;
+  panel.innerHTML = "מכינה את הקוד...";
+  try {
+    const s = $("wsrc").textContent.trim();
+    widgetScript = s.replace("__RT__", rt).replace("__CID__", CLIENT_ID).replace("__URL__", REDIRECT);
+  } catch(e){ panel.textContent = "לא הצלחתי לטעון את קוד הווידג'ט."; return; }
+  panel.innerHTML = '<b>ווידג\'ט למסך הבית</b><ol>' +
+    '<li>מתקינים מה-App Store את האפליקציה החינמית <b>Scriptable</b>.</li>' +
+    '<li>לוחצים כאן על "העתקת הקוד".</li>' +
+    '<li>ב-Scriptable לוחצים על <b>+</b>, מדביקים, משנים את השם למעלה ל"פטיפון" ולוחצים Done.</li>' +
+    '<li>במסך הבית: לחיצה ארוכה, <b>+</b>, מחפשים Scriptable, בוחרים גודל ומוסיפים.</li>' +
+    '<li>לחיצה ארוכה על הווידג\'ט ← עריכה ← ב-Script בוחרים "פטיפון".</li></ol>' +
+    '<button class="main" id="wcopy">העתקת הקוד</button><textarea id="wtext" readonly hidden></textarea>';
+  $("wcopy").onclick = () => {
+    const done = () => { $("wcopy").textContent = "הועתק ✓"; };
+    const manual = () => { const t = $("wtext"); t.hidden = false; t.value = widgetScript; t.focus(); t.select();
+      try { if (document.execCommand("copy")) return done(); } catch(e){}
+      $("wcopy").textContent = "סמני את הטקסט למטה והעתיקי"; };
+    if (navigator.clipboard) navigator.clipboard.writeText(widgetScript).then(done, manual); else manual();
+  };
+}
+
+// ---------- Spotify (PKCE) ----------
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62]).join("");
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+
+async function login(){
+  const v = rnd(64); store.set("pkce", v);
+  const ch = b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
+  const u = new URL("https://accounts.spotify.com/authorize");
+  u.search = new URLSearchParams({client_id:CLIENT_ID,response_type:"code",redirect_uri:REDIRECT,scope:SCOPES,code_challenge_method:"S256",code_challenge:ch});
+  location.href = u;
+}
+
+async function token(body, save=true){
+  const r = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:CLIENT_ID,...body})});
+  if (!r.ok) throw new Error("token");
+  const d = await r.json();
+  if (save){ store.set("at", d.access_token); if (d.refresh_token) store.set("rt", d.refresh_token); }
+  return d;
+}
+
+async function api(path, method="GET"){
+  let r = await fetch("https://api.spotify.com/v1/me/player" + path,{method,headers:{Authorization:"Bearer " + store.get("at")}});
+  if (r.status === 401 && store.get("rt")){
+    await token({grant_type:"refresh_token",refresh_token:store.get("rt")});
+    r = await fetch("https://api.spotify.com/v1/me/player" + path,{method,headers:{Authorization:"Bearer " + store.get("at")}});
+  }
+  return r;
+}
+
+async function poll(){
+  try {
+    const r = await api("/currently-playing");
+    if (r.status === 200){
+      const d = await r.json();
+      if (d && d.item){
+        setTrack({name:d.item.name,artist:d.item.artists.map(a => a.name).join(", "),img:(d.item.album.images[0]||{}).url});
+        setPlaying(!!d.is_playing);
+        return;
+      }
+    }
+    setPlaying(false);
+    if (r.status === 204) { $("title").textContent = "אין שיר מתנגן"; $("artist").textContent = "הפעילי שיר בספוטיפיי"; lastTrack = ""; }
+  } catch(e){ note.textContent = "לא הצלחתי להתחבר לספוטיפיי. נסי להתחבר שוב."; }
+}
+
+async function control(a){
+  if (!connected){ if (a === "toggle") setPlaying(!playing); return; }
+  if (a === "toggle") await api(playing ? "/pause" : "/play", "PUT");
+  if (a === "next") await api("/next", "POST");
+  if (a === "prev") await api("/previous", "POST");
+  setTimeout(poll, 600);
+}
+
+const ICONS = {
+  prev:'<svg viewBox="0 0 24 24"><path d="M6 5h2.4v14H6zM19 5v14L9 12z"/></svg>',
+  next:'<svg viewBox="0 0 24 24"><path d="M15.6 5H18v14h-2.4zM5 5v14l10-7z"/></svg>',
+  play:'<svg viewBox="0 0 24 24"><path d="M8 4.5v15L20 12z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z"/></svg>'
+};
+function renderButtons(){
+  row.innerHTML = "";
+  const ic = (name, label, fn, big) => { const b = document.createElement("button"); b.className = "ic" + (big ? " big" : ""); b.innerHTML = ICONS[name]; b.setAttribute("aria-label", label); b.onclick = fn; row.appendChild(b); };
+  if (connected){
+    ic("prev", "הקודם", () => control("prev"));
+    ic(playing ? "pause" : "play", playing ? "עצירה" : "ניגון", () => control("toggle"), true);
+    ic("next", "הבא", () => control("next"));
+  } else {
+    ic(playing ? "pause" : "play", playing ? "עצירה" : "ניגון", () => control("toggle"), true);
+    const b = document.createElement("button"); b.className = "connect"; b.textContent = "התחברות לספוטיפיי"; b.onclick = () => login(); row.appendChild(b);
+  }
+}
+
+// ---------- אפקט ברק לפי תנועה ----------
+const sheen = $("sheen");
+const tilt = a => sheen.style.setProperty("--a", a + "deg");
+addEventListener("pointermove", e => tilt((e.clientX / innerWidth) * 360));
+addEventListener("deviceorientation", e => { if (e.gamma != null) tilt(e.gamma * 4); });
+
+// ---------- התחלה ----------
+(async function init(){
+  const code = new URLSearchParams(location.search).get("code");
+  const mode = store.get("mode"); store.del("mode");
+  if (CLIENT_ID && code){
+    const body = {grant_type:"authorization_code",code,redirect_uri:REDIRECT,code_verifier:store.get("pkce")};
+    try {
+      if (mode === "widget"){ const d = await token(body, false); showWidget(d.refresh_token); }
+      else await token(body);
+    } catch(e){ note.textContent = "ההתחברות נכשלה. נסי שוב."; }
+    history.replaceState({}, "", REDIRECT);
+  }
+  $("wbtn").hidden = false;
+  $("wbtn").onclick = () => { store.set("mode","widget"); login(); };
+  if (CLIENT_ID && store.get("at")){
+    connected = true; renderButtons(); poll(); setInterval(poll, 4000);
+  } else {
+    note.textContent = "מצב הדגמה. התחברי לספוטיפיי כדי לראות את מה שמתנגן אצלך.";
+    renderButtons(); setTimeout(() => setPlaying(true), 700);
+  }
+})();
+</script>
+</body>
+</html>
