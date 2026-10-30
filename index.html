@@ -55,6 +55,16 @@ small{color:var(--mute);max-width:min(88vw,380px);text-align:center;line-height:
 .connect:hover{background:#e8573a}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d9442acc;opacity:1}50%{box-shadow:0 0 0 12px #d9442a00,0 0 22px #d9442a99;opacity:.82}}
 a[href*="netlify.com"],[class*="netlify-badge"],[id*="netlify-badge"],[class*="powered-by"],[id*="powered-by"]{display:none!important}
+.search{width:min(88vw,380px)}
+.search input{width:100%;font:inherit;color:var(--ink);background:#ffffff12;border:1px solid #ffffff30;border-radius:999px;padding:12px 18px;outline:none}
+.search input:focus{border-color:#ffffff70}
+.search input::placeholder{color:var(--mute)}
+#results{margin-top:6px;color:var(--mute);text-align:center}
+#results .r{display:flex;width:100%;gap:12px;align-items:center;justify-content:flex-start;text-align:right;background:none;border:none;border-radius:12px;padding:8px 10px;min-height:0}
+#results .r:hover{background:#ffffff14}
+#results .r img{width:46px;height:46px;border-radius:6px;flex:none}
+#results .r b{display:block;color:var(--ink);font-weight:600}
+#results .r span{color:var(--mute);font-size:.85rem}
 button.link{background:none;border:none;color:var(--mute);text-decoration:underline;padding:4px;min-height:0;font-size:.9rem}
 .panel{max-width:min(88vw,380px);background:#ffffff12;border:1px solid #ffffff26;border-radius:16px;padding:14px 16px;line-height:1.6;font-size:.95rem}
 .panel ol{margin:6px 0 10px;padding-inline-start:20px}.panel textarea{width:100%;height:80px;margin-top:8px;font-size:.7rem;direction:ltr}
@@ -73,6 +83,7 @@ button.link{background:none;border:none;color:var(--mute);text-decoration:underl
 </div>
 <div class="info"><h1 id="title"></h1><p id="artist"></p></div>
 <div class="row" id="row"></div>
+<div class="search" id="search" hidden><input id="q" type="search" placeholder="חיפוש שיר..." autocomplete="off" enterkeyhint="search"><div id="results"></div></div>
 <small id="note"></small>
 <button class="link" id="wbtn" hidden>ווידג'ט למסך הבית</button>
 <div class="panel" id="wpanel" hidden></div>
@@ -217,8 +228,7 @@ async function build() {
 }
 
 const widget = await build();
-if (config.runsInWidget) Script.setWidget(widget);
-else await widget.presentMedium();
+Script.setWidget(widget);
 Script.complete();
 </script>
 <script>
@@ -247,7 +257,7 @@ function setTrack(t){
   stage.style.setProperty("--art", t.img ? 'url("' + t.img + '")' : "none");
   if (t.img) vinyl(t.img); else setVinyl(0,0,.08);
   const l = $("label");
-  l.innerHTML = t.img ? '<img alt="" crossorigin="anonymous" src="' + t.img + '">' : "";
+  l.innerHTML = t.img ? '<img alt="" src="' + t.img + '">' : "";
 }
 
 // ---------- צבע התקליט מהעטיפה ----------
@@ -348,7 +358,10 @@ async function poll(){
 }
 
 async function control(a){
-  if (!connected){ if (a === "toggle") setPlaying(!playing); return; }
+  if (!connected){
+    if (a === "toggle"){ if (audio.src){ playing ? audio.pause() : audio.play().catch(()=>{}); } setPlaying(!playing); }
+    return;
+  }
   if (a === "toggle") await api(playing ? "/pause" : "/play", "PUT");
   if (a === "next") await api("/next", "POST");
   if (a === "prev") await api("/previous", "POST");
@@ -373,6 +386,51 @@ function renderButtons(){
     const b = document.createElement("button"); b.className = "connect"; b.textContent = "התחברות לספוטיפיי"; b.onclick = () => login(); row.appendChild(b);
   }
 }
+
+// ---------- חיפוש שיר (בלי התחברות) ----------
+const audio = new Audio();
+audio.onended = () => setPlaying(false);
+let jsonpN = 0, qTimer;
+function itunes(term){
+  return new Promise((res, rej) => {
+    const cb = "__it" + (++jsonpN), sc = document.createElement("script");
+    const done = () => { clearTimeout(t); delete window[cb]; sc.remove(); };
+    const t = setTimeout(() => { done(); rej(); }, 8000);
+    window[cb] = d => { done(); res((d && d.results) || []); };
+    sc.onerror = () => { done(); rej(); };
+    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=6&term=" + encodeURIComponent(term) + "&callback=" + cb;
+    document.body.appendChild(sc);
+  });
+}
+function renderResults(list){
+  const box = $("results"); box.innerHTML = "";
+  if (!list.length){ box.textContent = "לא נמצאו שירים"; return; }
+  list.forEach(it => {
+    const d = document.createElement("button"); d.className = "r";
+    const img = document.createElement("img"); img.alt = ""; img.src = it.artworkUrl100 || "";
+    const tx = document.createElement("div");
+    const b = document.createElement("b"); b.textContent = it.trackName;
+    const sp = document.createElement("span"); sp.textContent = it.artistName;
+    tx.append(b, sp); d.append(img, tx);
+    d.onclick = () => pick(it);
+    box.appendChild(d);
+  });
+}
+function pick(it){
+  $("results").innerHTML = ""; $("q").value = ""; $("q").blur();
+  lastTrack = "";
+  setTrack({name: it.trackName, artist: it.artistName, img: (it.artworkUrl100 || "").replace("100x100bb", "600x600bb")});
+  if (it.previewUrl){ audio.src = it.previewUrl; audio.play().catch(() => {}); }
+  setPlaying(true);
+}
+$("q").oninput = () => {
+  clearTimeout(qTimer);
+  const v = $("q").value.trim();
+  if (!v){ $("results").innerHTML = ""; return; }
+  qTimer = setTimeout(async () => {
+    try { renderResults(await itunes(v)); } catch(e){ $("results").textContent = "החיפוש לא עבד, נסו שוב."; }
+  }, 350);
+};
 
 // ---------- אפקט ברק לפי תנועה ----------
 const sheen = $("sheen");
@@ -400,7 +458,8 @@ addEventListener("deviceorientation", e => { if (e.gamma != null) tilt(e.gamma *
   if (CLIENT_ID && store.get("at")){
     connected = true; renderButtons(); poll(); setInterval(poll, 4000);
   } else {
-    note.textContent = "מצב הדגמה. התחברי לספוטיפיי כדי לראות את מה שמתנגן אצלך.";
+    note.textContent = "חפשו שיר כדי לראות אותו על הפטיפון, או התחברו לספוטיפיי.";
+    $("search").hidden = false;
     renderButtons(); setTimeout(() => setPlaying(true), 700);
   }
 })();
