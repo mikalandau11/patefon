@@ -21,7 +21,7 @@ body{background:linear-gradient(160deg,#ffffff0d 0%,#ffffff00 35%),radial-gradie
 .bg{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:0}
 .bg::before{content:"";position:absolute;inset:-25%;background:var(--art,none) center/cover no-repeat;filter:blur(26px) saturate(1.25);transform:scale(1.1);transition:background-image .6s}
 .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0000001a,#00000059);box-shadow:inset 0 2px 0 #ffffff26}
-.platter{z-index:1;position:absolute;left:6%;top:12%;width:82%;aspect-ratio:1;border-radius:50%;background:#15090f;box-shadow:0 0 0 5px #2c2c2c,0 6px 14px #0009;direction:ltr}
+.platter{cursor:pointer;-webkit-tap-highlight-color:transparent;z-index:1;position:absolute;left:6%;top:12%;width:82%;aspect-ratio:1;border-radius:50%;background:#15090f;box-shadow:0 0 0 5px #2c2c2c,0 6px 14px #0009;direction:ltr}
 .record{position:absolute;inset:4%;border-radius:50%;animation:spin 3.6s linear infinite;animation-play-state:paused;
 background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 85%,var(--v3,#060607) 100%)}
 .playing .record{animation-play-state:running}
@@ -291,7 +291,8 @@ async function showWidget(rt){
     '<li>ב-Scriptable לוחצים על <b>+</b>, מדביקים, משנים את השם למעלה ל"פטיפון" ולוחצים Done.</li>' +
     '<li>במסך הבית: לחיצה ארוכה, <b>+</b>, מחפשים Scriptable, בוחרים גודל ומוסיפים.</li>' +
     '<li>לחיצה ארוכה על הווידג\'ט ← עריכה ← ב-Script בוחרים "פטיפון".</li></ol>' +
-    '<button class="main" id="wcopy">העתקת הקוד</button><textarea id="wtext" readonly hidden></textarea>';
+    '<div class="row" style="direction:rtl"><button class="main" id="wcopy">העתקת הקוד</button><button id="wclose">סגירה</button></div><textarea id="wtext" readonly hidden></textarea>';
+  $("wclose").onclick = () => { panel.hidden = true; panel.innerHTML = ""; scrollTo(0,0); };
   $("wcopy").onclick = () => {
     const done = () => { $("wcopy").textContent = "הועתק ✓"; };
     const manual = () => { const t = $("wtext"); t.hidden = false; t.value = widgetScript; t.focus(); t.select();
@@ -391,6 +392,9 @@ addEventListener("deviceorientation", e => { if (e.gamma != null) tilt(e.gamma *
     } catch(e){ note.textContent = "ההתחברות נכשלה. נסי שוב."; }
     history.replaceState({}, "", REDIRECT);
   }
+  const pl = document.querySelector(".platter");
+  pl.setAttribute("role","button"); pl.setAttribute("aria-label","ניגון או עצירה");
+  pl.onclick = () => control("toggle");
   $("wbtn").hidden = false;
   $("wbtn").onclick = () => { store.set("mode","widget"); login(); };
   if (CLIENT_ID && store.get("at")){
