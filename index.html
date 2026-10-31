@@ -37,8 +37,9 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 .seg .rest{position:absolute;z-index:1;top:4px;bottom:4px;border-radius:999px;background:linear-gradient(180deg,#ffffffee,#ffffffc8);box-shadow:inset 0 1px 1px #fff,0 2px 8px #0004;transition:left .45s cubic-bezier(.3,1.3,.5,1),width .45s cubic-bezier(.3,1.3,.5,1)}
 
 /* ---------- player ---------- */
-#v-player{overflow:clip;width:100%;justify-content:center;gap:16px;padding:24px 12px 130px}
-.deck{position:relative;width:min(92vw,460px);aspect-ratio:1;touch-action:pan-y}
+#v-player{overflow:hidden;width:100%;height:100vh;height:100dvh;min-height:0;justify-content:center;gap:16px;padding:10px 12px calc(96px + env(safe-area-inset-bottom,0px))}
+html.lock,html.lock body{overflow:hidden;height:100%;overscroll-behavior:none}
+.deck{position:relative;width:min(92vw,460px,58dvh);aspect-ratio:1;touch-action:none}
 .platter{position:absolute;left:3%;top:3%;width:88%;height:88%;border-radius:50%;background:#0b0b0b;box-shadow:0 0 0 4px #ffffff14,0 22px 50px #000c;cursor:grab}
 .slide{position:absolute;inset:3%;will-change:transform}
 .record{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 85%,#050505 100%);animation:spin 3.6s linear infinite;animation-play-state:paused;box-shadow:0 10px 30px #0008}
@@ -101,14 +102,18 @@ button:focus{outline:none}
 .wbtn svg{width:24px;height:24px;fill:#fff}
 .sbtn svg{width:22px;height:22px;fill:#fff}
 .stack{width:min(90vw,380px);display:flex;flex-direction:column;align-items:center;margin-top:6px}
-.item{position:relative;width:100%;height:var(--slot);cursor:pointer}
+.item{position:relative;width:100%;height:var(--slot);cursor:pointer;transition:transform .3s cubic-bezier(.3,1.4,.5,1),filter .3s}
+.item.dim{filter:brightness(.78) saturate(.9)}
+.item.pop{transform:translateY(-10px) scale(1.05);filter:none}
+.item.pop .cover{box-shadow:0 30px 50px #000e}
+.item.pop .spine{box-shadow:inset 0 1px 0 #ffffff90,0 6px 18px #0008}
 .item .spine{position:relative;z-index:2;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:7px 12px 6px;background:var(--sc,#3a3a40);color:var(--st,#fff);white-space:nowrap;overflow:hidden;font-size:.95rem;box-shadow:inset 0 1px 0 #ffffff70,inset 0 -1px 0 #0003;transition:background .4s}
 .item .spine::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:5px;background:var(--sc,#3a3a40);filter:brightness(.6)}
 .item .spine b{font-weight:800;overflow:hidden;text-overflow:ellipsis;max-width:70%}
 .item .spine span{font-weight:300;opacity:.85;overflow:hidden;text-overflow:ellipsis}
 .item .persp{position:relative;z-index:1;perspective:650px;perspective-origin:50% 0}
 .stack .item:last-child{margin-bottom:120px}
-.item .cover{width:100%;aspect-ratio:1;transform-origin:50% 0;background:#222 var(--cv) center/cover;box-shadow:0 22px 34px #000c;position:relative;will-change:transform}
+.item .cover{transition:transform .2s ease-out;width:100%;aspect-ratio:1;transform-origin:50% 0;background:#222 var(--cv) center/cover;box-shadow:0 22px 34px #000c;position:relative;will-change:transform}
 .item .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(175deg,#ffffff38,#fff0 30%,#0000 70%,#0005)}
 .msg{color:#ffffffb0;text-align:center;margin:40px 20px;line-height:1.6;display:flex;flex-direction:column;align-items:center;gap:14px}
 
@@ -621,18 +626,19 @@ function startPreview(){
   playing = true; renderPlaying();
 }
 // slide the record out, change the song, slide the new record in from the other side
-async function changeTrack(dir, fromX = 0, speed = 0){
+async function changeTrack(dir, fromX = 0, speed = 0){   // dir: +1 next, -1 previous
+  const out = -dir;                                      // next leaves to the left, previous to the right
   if (sliding || (!cur && connected)) { slide.style.transition = "transform .4s"; slide.style.transform = "none"; return; }
   sliding = true;
-  const W = stage.offsetWidth * 1.25, dist = Math.abs(dir*W - fromX);
+  const W = stage.offsetWidth * 1.25, dist = Math.abs(out*W - fromX);
   const outMs = Math.max(260, Math.min(700, speed > .2 ? dist / speed : 520));
   slide.style.transition = `transform ${outMs}ms cubic-bezier(.3,.6,.4,1)`;
-  slide.style.transform = `translateX(${dir*W}px) rotate(${dir*40}deg)`;
+  slide.style.transform = `translateX(${out*W}px) rotate(${out*40}deg)`;
   const oldId = cur && cur.id;
   const ok = await skip(dir);
   await new Promise(r => setTimeout(r, outMs));
   if (connected && ok){ sliding = false; for (let i = 0; i < 8; i++){ await poll(); if (cur && cur.id !== oldId) break; await new Promise(r => setTimeout(r, 350)); } sliding = true; }
-  slide.style.transition = "none"; slide.style.transform = `translateX(${-dir*W}px) rotate(${-dir*40}deg)`;
+  slide.style.transition = "none"; slide.style.transform = `translateX(${-out*W}px) rotate(${-out*40}deg)`;
   void slide.offsetWidth;
   slide.style.transition = "transform 650ms cubic-bezier(.2,.8,.25,1)"; slide.style.transform = "none";
   setTimeout(() => { sliding = false; }, 650);
@@ -655,7 +661,7 @@ platter.addEventListener("pointermove", e => { if (sx === null) return; const dx
 const platterUp = e => { if (sx === null) return; const dx = e.clientX - sx; sx = null; e.stopPropagation();
   if (!swiping){ if (Math.abs(dx) < 8) toggle(); return; }
   const W = stage.offsetWidth;
-  if ((Math.abs(dx) > W*0.3 || Math.abs(vel) > .6) && Math.sign(vel || dx) === Math.sign(dx)) changeTrack(dx > 0 ? 1 : -1, dx, Math.abs(vel));
+  if ((Math.abs(dx) > W*0.3 || Math.abs(vel) > .6) && Math.sign(vel || dx) === Math.sign(dx)) changeTrack(dx < 0 ? 1 : -1, dx, Math.abs(vel));
   else { slide.style.transition = "transform .4s cubic-bezier(.3,1.4,.5,1)"; slide.style.transform = "none"; } };
 platter.addEventListener("pointerup", platterUp); platter.addEventListener("pointercancel", platterUp);
 platter.addEventListener("click", e => e.stopPropagation());
@@ -684,6 +690,9 @@ const armUp = async e => { if (!armDrag) return; armDrag = false; bub.classList.
 grip.addEventListener("pointerup", armUp); grip.addEventListener("pointercancel", armUp);
 grip.addEventListener("click", e => e.stopPropagation());
 
+// no page scrolling/bouncing on the player screen
+document.addEventListener("touchmove", e => { if (view === "player" && !e.target.closest(".sheet")) e.preventDefault(); }, {passive:false});
+
 // ---------- navigation + bottom bar ----------
 let hideT;
 function syncChrome(){
@@ -702,6 +711,7 @@ function go(v){
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $("bar").querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.k === (v === "player" ? "player" : "library")));
   $("bar").classList.remove("tap"); syncChrome();
+  document.documentElement.classList.toggle("lock", v === "player");
   scrollTo(0, 0);
   if (v === "library"){ loadLibrary(); requestAnimationFrame(() => { $("libSeg")._place(); layoutStack(); }); }
 }
@@ -751,9 +761,15 @@ function layoutStack(){
   const W = st.offsetWidth, vh = innerHeight, first = st.querySelector(".spine");
   const spineH = first ? first.offsetHeight : 34;
   st.style.setProperty("--slot", Math.round(spineH + projH(W, BOT_A) - 2) + "px");
-  st.querySelectorAll(".item").forEach(it => {
-    const y = Math.max(0, Math.min(1, it.getBoundingClientRect().top / vh));
-    it.querySelector(".cover").style.transform = `rotateX(${-(TOP_A + (BOT_A - TOP_A) * y)}deg)`;
+  const items = [...st.querySelectorAll(".item")];
+  // the one nearest the middle of the screen pops out
+  let best = null, bestD = 1e9;
+  items.forEach(it => { const r = it.getBoundingClientRect(), d = Math.abs(r.top + r.height/2 - vh*0.45); if (d < bestD){ bestD = d; best = it; } });
+  items.forEach((it, i) => {
+    const y = Math.max(0, Math.min(1, it.getBoundingClientRect().top / vh)), pop = it === best;
+    it.classList.toggle("pop", pop); it.classList.toggle("dim", !pop);
+    it.style.zIndex = pop ? 500 : 10 + i;
+    it.querySelector(".cover").style.transform = `rotateX(${-(TOP_A + (BOT_A - TOP_A) * y - (pop ? 8 : 0))}deg)`;
   });
 }
 addEventListener("scroll", () => { if (view === "library") requestAnimationFrame(layoutStack); }, {passive:true});
@@ -875,6 +891,7 @@ function setupVisitor(note){
   renderPlaying(); renderAcct();
 }
 (async function init(){
+  document.documentElement.classList.add("lock");
   renderPlaying();
   const code = new URLSearchParams(location.search).get("code");
   const mode = store.get("mode"); store.del("mode");
