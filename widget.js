@@ -22,12 +22,13 @@ async function nowPlaying(at) {
   const txt = await r.loadString();
   if (!r.response || r.response.statusCode !== 200 || !txt) return null;
   const d = JSON.parse(txt);
-  if (!d.item) return null;
+  if (!d.item || !d.is_playing) return null;
   const imgs = d.item.album ? d.item.album.images : [];
   return {
     name: d.item.name,
     artist: d.item.artists.map(a => a.name).join(", "),
     img: (imgs[1] || imgs[0] || {}).url,
+    left: Math.max((d.item.duration_ms || 0) - (d.progress_ms || 0), 0),
   };
 }
 
@@ -48,8 +49,10 @@ function record(cover, size) {
     ctx.setLineWidth(w);
     ctx.strokeEllipse(new Rect(c - L - w / 2, c - L - w / 2, 2 * L + w, 2 * L + w));
   } else {
-    ctx.setFillColor(new Color("#e8689d"));
+    ctx.setFillColor(new Color("#d9442a"));
     ctx.fillEllipse(new Rect(c - L, c - L, 2 * L, 2 * L));
+    ctx.setFillColor(new Color("#e8573a"));
+    ctx.fillEllipse(new Rect(c - L * 0.8, c - L * 0.85, L * 1.3, L * 1.3));
   }
   ctx.setLineWidth(1);
   ctx.setStrokeColor(new Color("#ffffff", 0.09));
@@ -75,16 +78,21 @@ function record(cover, size) {
   return ctx.getImage();
 }
 
-// רקע: העטיפה מוקטנת ומוגדלת (נראה מטושטש) עם שכבה כהה
+// רקע: העטיפה מוקטנת ומוגדלת בכמה שלבים (נראה כמו בלור) עם שכבה כהה
 function background(cover) {
-  const tiny = new DrawContext();
-  tiny.size = new Size(10, 10);
-  tiny.respectScreenScale = false;
-  tiny.drawImageInRect(cover, new Rect(0, 0, 10, 10));
+  let img = cover;
+  for (const n of [24, 8, 4]) {           // מקטינים בהדרגה
+    const c = new DrawContext(); c.size = new Size(n, n); c.respectScreenScale = false;
+    c.drawImageInRect(img, new Rect(0, 0, n, n)); img = c.getImage();
+  }
+  for (const n of [12, 40, 140]) {        // ומגדילים בהדרגה – כל שלב מחליק עוד
+    const c = new DrawContext(); c.size = new Size(n, n); c.respectScreenScale = false;
+    c.drawImageInRect(img, new Rect(-n * 0.08, -n * 0.08, n * 1.16, n * 1.16)); img = c.getImage();
+  }
   const ctx = new DrawContext();
   ctx.size = new Size(400, 400);
-  ctx.drawImageInRect(tiny.getImage(), new Rect(-40, -40, 480, 480));
-  ctx.setFillColor(new Color("#000000", 0.35));
+  ctx.drawImageInRect(img, new Rect(-30, -30, 460, 460));
+  ctx.setFillColor(new Color("#000000", 0.3));
   ctx.fillRect(new Rect(0, 0, 400, 400));
   return ctx.getImage();
 }
@@ -92,9 +100,8 @@ function background(cover) {
 async function build() {
   const w = new ListWidget();
   w.url = SITE;
-  w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
   const g = new LinearGradient();
-  g.colors = [new Color("#3a1a2b"), new Color("#140a10")];
+  g.colors = [new Color("#2e2e32"), new Color("#000000")];
   g.locations = [0, 1];
   w.backgroundGradient = g;
 
@@ -107,10 +114,22 @@ async function build() {
     msg = "צריך להכין קוד חדש באתר";
   }
   if (cover) w.backgroundImage = background(cover);
+  // מבקשים עדכון בסוף השיר (עד 5 דקות); האייפון מחליט מתי בפועל
+  const wait = t ? Math.min(Math.max(t.left + 5000, 30000), 5 * 60 * 1000) : 5 * 60 * 1000;
+  w.refreshAfterDate = new Date(Date.now() + wait);
 
-  const title = msg || (t ? t.name : "אין שיר מתנגן");
-  const sub = msg ? "" : (t ? t.artist : "הפעילי שיר בספוטיפיי");
   const family = config.widgetFamily || "medium";
+  if (!t && !msg) {
+    w.setPadding(8, 8, 8, 8);
+    w.addSpacer();
+    const row = w.addStack(); row.addSpacer();
+    const im = row.addImage(record(null, 280)); im.imageSize = family === "small" ? new Size(120, 120) : new Size(140, 140);
+    row.addSpacer();
+    w.addSpacer();
+    return w;
+  }
+  const title = msg || t.name;
+  const sub = msg ? "" : t.artist;
 
   if (family === "small") {
     w.setPadding(10, 10, 10, 10);
@@ -137,6 +156,5 @@ async function build() {
 }
 
 const widget = await build();
-if (config.runsInWidget) Script.setWidget(widget);
-else await widget.presentMedium();
+Script.setWidget(widget);
 Script.complete();

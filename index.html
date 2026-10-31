@@ -6,87 +6,250 @@
 <title>פטיפון</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="פטיפון">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chewy&family=Fredoka:wght@400;500;700&display=swap">
 <style>
-:root{--bg:#2a1320;--wood:#6b3a26;--wood2:#4a2518;--pink:#e8689d;--cream:#f6e6d6;--ink:#fff3ea;--mute:#a8a8b0;--red:#d9442a;color-scheme:dark;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#2a1320}}
+:root{--ink:#fff;--mute:#d2d2d8;--red:#d9442a}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:linear-gradient(160deg,#ffffff0d 0%,#ffffff00 35%),radial-gradient(120% 70% at 50% -5%,#3a3a3e,#111113 50%,#000 100%);background-attachment:fixed;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:16px}
-.plinth{position:relative;width:min(88vw,380px);aspect-ratio:1;border-radius:22px;background:linear-gradient(145deg,#2b2b2e,#151517);box-shadow:0 24px 50px #0008}
-.bg{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:0}
-.bg::before{content:"";position:absolute;inset:-25%;background:var(--art,none) center/cover no-repeat;filter:blur(26px) saturate(1.25);transform:scale(1.1);transition:background-image .6s}
-.bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0000001a,#00000059);box-shadow:inset 0 2px 0 #ffffff26}
-.platter{cursor:pointer;-webkit-tap-highlight-color:transparent;z-index:1;position:absolute;left:6%;top:12%;width:82%;aspect-ratio:1;border-radius:50%;background:#15090f;box-shadow:0 0 0 5px #2c2c2c,0 6px 14px #0009;direction:ltr}
-.record{position:absolute;inset:4%;border-radius:50%;animation:spin 3.6s linear infinite;animation-play-state:paused;
-background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 85%,var(--v3,#060607) 100%)}
-.playing .record{animation-play-state:running}
+html,body{margin:0;min-height:100%}
+html{overflow-x:clip}
+body{overflow-x:hidden;background:#000;color:var(--ink);font-family:system-ui,-apple-system,"SF Pro Text","Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent;padding-top:env(safe-area-inset-top,0px)}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;padding:0}
+
+/* full-screen blurred background */
+#bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(160deg,#ffffff10 0%,#fff0 35%),radial-gradient(120% 70% at 50% -5%,#3a3a3e,#111113 50%,#000 100%)}
+#bg i{position:absolute;inset:-20%;background:var(--art,none) center/cover;filter:blur(40px) saturate(1.3);opacity:0;transition:opacity .8s}
+#bg.has i{opacity:1}
+#bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#0000002e,#0000008c)}
+
+.view{display:none;flex-direction:column;align-items:center;min-height:100vh}
+.view.on{display:flex}
+
+/* glass */
+.frost{background:linear-gradient(180deg,#ffffffb0,#ffffff80);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);border:1px solid #ffffffcc;box-shadow:inset 0 1px 1px #fff,inset 0 -1px 2px #0002,0 10px 28px #0007;color:#111}
+.tint{background:linear-gradient(180deg,#ffffff3a,#ffffff14);-webkit-backdrop-filter:blur(22px) saturate(200%);backdrop-filter:blur(22px) saturate(200%);border:1px solid #ffffff60;box-shadow:inset 0 1px 1px #ffffffb0,inset 0 -1px 2px #0004,0 10px 28px #0008;color:#fff}
+.seg{position:relative;display:flex;border-radius:999px;padding:4px;direction:ltr}
+.seg button{position:relative;z-index:2;padding:11px 24px;border-radius:999px;font-weight:700;font-size:1.05rem;color:#ffffffb0;transition:color .3s}
+.seg button.on{color:#111}
+.seg .rest{position:absolute;z-index:1;top:4px;bottom:4px;border-radius:999px;background:linear-gradient(180deg,#ffffffee,#ffffffc8);box-shadow:inset 0 1px 1px #fff,0 2px 8px #0004;transition:left .45s cubic-bezier(.3,1.3,.5,1),width .45s cubic-bezier(.3,1.3,.5,1)}
+
+/* ---------- player ---------- */
+#v-player{overflow:clip;width:100%;justify-content:center;gap:16px;padding:24px 12px 130px}
+.deck{position:relative;width:min(92vw,460px);aspect-ratio:1;touch-action:pan-y}
+.platter{position:absolute;left:3%;top:3%;width:88%;height:88%;border-radius:50%;background:#0b0b0b;box-shadow:0 0 0 4px #ffffff14,0 22px 50px #000c;cursor:grab}
+.slide{position:absolute;inset:3%;will-change:transform}
+.record{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 85%,#050505 100%);animation:spin 3.6s linear infinite;animation-play-state:paused;box-shadow:0 10px 30px #0008}
 .record::after{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,#0000002e 0 1px,#ffffff0a 1px 2px,transparent 2px 3px)}
-.label{position:absolute;inset:32%;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 40% 35%,#e8573a,#b8321a);z-index:2;display:grid;place-items:center;box-shadow:0 0 0 3px #0003}
-.label img{width:100%;height:100%;object-fit:cover;display:block}
-.label::after{content:"";position:absolute;left:50%;top:50%;width:9%;aspect-ratio:1;border-radius:50%;background:#15090f;transform:translate(-50%,-50%)}
-.label b{font:italic 500 .8rem Fraunces,Georgia,serif;color:#7a2349;text-align:center;padding:0 14%;line-height:1.1}
-.sheen{position:absolute;inset:4%;border-radius:50%;z-index:3;pointer-events:none;mix-blend-mode:screen;opacity:.22;background:conic-gradient(from var(--a,0deg),#fff0,#fff 8%,#fff0 18%,#fff0 50%,#fff 58%,#fff0 68%)}
-.arm{position:absolute;right:10%;top:7%;width:10px;height:66%;transform-origin:50% 7px;transform:rotate(-12deg);transition:transform 1.2s cubic-bezier(.5,0,.2,1);z-index:5;direction:ltr}
-.playing .arm{transform:rotate(23deg)}
-.arm i{position:absolute;left:2px;top:0;width:6px;height:100%;border-radius:4px;background:linear-gradient(90deg,#9a9aa0,#fff 45%,#c9c9cf 60%,#808086);box-shadow:3px 6px 10px #000a}
-.arm::before{content:"";position:absolute;left:-14px;top:-14px;width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#b9b9bf 45%,#6e6e74);box-shadow:0 4px 10px #000a}
-.arm::after{content:"";position:absolute;left:-5px;bottom:-8px;width:20px;height:30px;border-radius:4px;background:linear-gradient(#3a3a3e,#111);box-shadow:0 0 0 1px #ffffff55,0 4px 8px #000c}
-.info{text-align:center;max-width:min(88vw,380px);min-height:84px}
-.info h1{font:italic 500 1.6rem/1.15 Fraunces,Georgia,serif;margin:0 0 4px;overflow-wrap:anywhere}
-.info p{margin:0;color:var(--mute)}
-.row{display:flex;gap:14px;align-items:center;direction:ltr}
-button{font:inherit;color:var(--ink);background:#ffffff14;border:1px solid #ffffff30;border-radius:999px;padding:10px 20px;cursor:pointer;min-height:44px}
-button:hover{background:#ffffff26}
-button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
-button.main{background:var(--pink);border-color:var(--pink);color:#3a0e22;font-weight:600}
-small{color:var(--mute);max-width:min(88vw,380px);text-align:center;line-height:1.5}
-.ic{width:58px;height:58px;padding:0;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,#3c3c40,#0a0a0b 70%);border:1px solid #ffffff2a;box-shadow:0 8px 18px #000b,inset 0 1px 0 #ffffff3d}
-.ic:hover{background:radial-gradient(circle at 35% 28%,#4a4a4f,#111 70%)}
-.ic:active{transform:scale(.94)}
-.ic svg{width:42%;height:42%;fill:#fff}
-.ic.big{width:76px;height:76px}
-.ic.big svg{width:40%;height:40%}
-.connect{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;animation:pulse 1.6s ease-in-out infinite}
-.connect:hover{background:#e8573a}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d9442acc;opacity:1}50%{box-shadow:0 0 0 12px #d9442a00,0 0 22px #d9442a99;opacity:.82}}
-a[href*="netlify.com"],[class*="netlify-badge"],[id*="netlify-badge"],[class*="powered-by"],[id*="powered-by"]{display:none!important}
-.search{width:min(88vw,380px)}
-.search input{width:100%;font:inherit;color:var(--ink);background:#ffffff12;border:1px solid #ffffff30;border-radius:999px;padding:12px 18px;outline:none}
-.search input:focus{border-color:#ffffff70}
-.search input::placeholder{color:var(--mute)}
-#results{margin-top:6px;color:var(--mute);text-align:center}
-#results .r{display:flex;width:100%;gap:12px;align-items:center;justify-content:flex-start;text-align:right;background:none;border:none;border-radius:12px;padding:8px 10px;min-height:0}
-#results .r:hover{background:#ffffff14}
-#results .r img{width:46px;height:46px;border-radius:6px;flex:none}
-#results .r b{display:block;color:var(--ink);font-weight:600}
-#results .r span{color:var(--mute);font-size:.85rem}
-button.link{background:none;border:none;color:var(--mute);text-decoration:underline;padding:4px;min-height:0;font-size:.9rem}
-.panel{max-width:min(88vw,380px);background:#ffffff12;border:1px solid #ffffff26;border-radius:16px;padding:14px 16px;line-height:1.6;font-size:.95rem}
-.panel ol{margin:6px 0 10px;padding-inline-start:20px}.panel textarea{width:100%;height:80px;margin-top:8px;font-size:.7rem;direction:ltr}
+.playing .record{animation-play-state:running}
+.label{position:absolute;inset:32%;border-radius:50%;background:var(--lab,radial-gradient(circle at 40% 35%,#e8573a,#b8321a)) center/cover;z-index:2;box-shadow:0 0 0 3px #0003}
+.label::after{content:"";position:absolute;left:50%;top:50%;width:8%;aspect-ratio:1;border-radius:50%;background:#111;transform:translate(-50%,-50%)}
+.arm{position:absolute;right:3%;top:2%;width:11px;height:64%;transform-origin:50% 8px;transform:rotate(var(--arm,-5deg));transition:transform 1.2s cubic-bezier(.5,0,.2,1);z-index:5;pointer-events:none}
+.arm.track{transition:transform .5s linear}
+.arm.drag{transition:none}
+.arm i{position:absolute;left:2px;top:0;width:7px;height:100%;border-radius:4px;background:linear-gradient(90deg,#9a9aa0,#fff 45%,#c9c9cf 60%,#808086);box-shadow:3px 6px 10px #000a}
+.arm::before{content:"";position:absolute;left:-15px;top:-15px;width:41px;height:41px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#b9b9bf 45%,#6e6e74);box-shadow:0 4px 10px #000a}
+.arm::after{content:"";position:absolute;left:-5px;bottom:-9px;width:21px;height:32px;border-radius:4px;background:linear-gradient(#3a3a3e,#111);box-shadow:0 0 0 1px #ffffff55}
+.arm .grip{z-index:3;position:absolute;left:-26px;bottom:-30px;width:64px;height:70px;cursor:grab;touch-action:none;pointer-events:auto}
+.timebub{position:absolute;z-index:8;transform:translate(-50%,-140%);padding:6px 12px;border-radius:999px;font-weight:700;font-size:.9rem;font-variant-numeric:tabular-nums;direction:ltr;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
+.timebub.show{opacity:1}
+/* balloon handwriting, small */
+.info{text-align:center;min-height:56px;max-width:min(88vw,420px)}
+.info h1{font-family:"Chewy","Fredoka",system-ui,sans-serif;font-weight:700;font-size:1.45rem;line-height:1.15;margin:0 0 3px;letter-spacing:.01em;text-shadow:0 2px 10px #0008;overflow-wrap:anywhere}
+.info p{font-family:"Fredoka",system-ui,sans-serif;font-weight:400;font-size:.95rem;margin:0;color:var(--mute);text-shadow:0 1px 8px #0008}
+.info small{display:block;margin-top:4px;font-family:"Fredoka",system-ui,sans-serif;font-size:.78rem;color:#ffffff99}
+.connect{margin-top:4px;border-radius:999px;padding:13px 26px;font-weight:700;background:var(--red);border:1px solid #ffffff55;color:#fff;box-shadow:0 0 0 0 #d9442acc;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d9442acc;opacity:1}50%{box-shadow:0 0 0 12px #d9442a00,0 0 22px #d9442a99;opacity:.85}}
+
+/* corner buttons (player only, hidden while the bar shows) */
+.corner{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:55;display:flex;gap:10px;direction:ltr;transition:opacity .25s,transform .3s}
+.corner.l{left:18px}.corner.r{right:18px}
+.corner.hide{opacity:0;transform:translateY(20px);pointer-events:none}
+.gbtn{width:62px;height:50px;border-radius:999px;display:grid;place-items:center;transition:transform .2s}
+.gbtn:active{transform:scale(1.1)}
+.gbtn svg{width:22px;height:22px;fill:#fff}
+
+/* bottom glass bar */
+.bar{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;z-index:60;display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;direction:ltr;
+  transform:translate(-50%,160%);opacity:0;transition:transform .45s cubic-bezier(.3,1.3,.5,1),opacity .3s}
+.bar.show{transform:translate(-50%,0);opacity:1}
+.bar .tab{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;opacity:.7;transition:opacity .2s,background .2s}
+.bar .tab.on{opacity:1;background:#ffffff26}
+.bar .tab svg{width:27px;height:27px;fill:#fff}
+.bar .now{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 5px;border-radius:999px;min-width:120px;cursor:pointer}
+.bar .mini{width:46px;height:46px;border-radius:50%;position:relative;flex:none;background:radial-gradient(circle,var(--v1,#141416) 0 30%,#0b0b0c 31% 60%,var(--v1,#141416) 61% 85%,#050505);box-shadow:0 2px 8px #0006;animation:spin 3.6s linear infinite;animation-play-state:paused}
+.is-playing .bar .mini{animation-play-state:running}
+.bar .mini::after{content:"";position:absolute;inset:30%;border-radius:50%;background:var(--lab,radial-gradient(circle at 40% 35%,#e8573a,#b8321a)) center/cover}
+.bar .pp{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none}
+.bar .pp svg{width:24px;height:24px;fill:#111}
+.bar .ttl{font-family:"Fredoka",system-ui,sans-serif;font-size:.82rem;font-weight:600;color:#111;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl}
+
+/* ---------- library ---------- */
+#v-library{padding:0 0 150px}
+.lib-head{position:sticky;top:0;z-index:40;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0 18px;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);background:linear-gradient(180deg,#000a,#0000);-webkit-mask:linear-gradient(#000 70%,#0000);mask:linear-gradient(#000 70%,#0000)}
+.head-row{position:relative;width:min(94vw,440px);display:flex;justify-content:center}
+.wbtn,.sbtn{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;display:grid;place-items:center}
+.wbtn{left:0}.sbtn{right:0}
+.wbtn svg{width:24px;height:24px;fill:#fff}
+.sbtn svg{width:22px;height:22px;fill:#fff}
+.motion-btn{border-radius:999px;padding:8px 14px;font-size:.8rem;font-weight:600}
+.stack{width:min(90vw,380px);display:flex;flex-direction:column;align-items:center;margin-top:6px}
+.item{position:relative;width:100%;height:var(--slot);cursor:pointer}
+.item .spine{position:relative;z-index:2;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:7px 12px 6px;background:var(--sc,#3a3a40);color:var(--st,#fff);white-space:nowrap;overflow:hidden;font-size:.95rem;box-shadow:inset 0 1px 0 #ffffff70,inset 0 -1px 0 #0003;transition:background .4s}
+.item .spine::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:5px;background:var(--sc,#3a3a40);filter:brightness(.6)}
+.item .spine b{font-weight:800;overflow:hidden;text-overflow:ellipsis;max-width:70%}
+.item .spine span{font-weight:300;opacity:.85;overflow:hidden;text-overflow:ellipsis}
+.item .persp{position:relative;z-index:1;perspective:650px;perspective-origin:50% 0}
+.item .cover{width:100%;aspect-ratio:1;transform-origin:50% 0;background:#222 var(--cv) center/cover;box-shadow:0 22px 34px #000c;position:relative;will-change:transform}
+.item .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(175deg,#ffffff38,#fff0 30%,#0000 70%,#0005)}
+.msg{color:#ffffffb0;text-align:center;margin:40px 20px;line-height:1.6;display:flex;flex-direction:column;align-items:center;gap:14px}
+
+/* ---------- list page (album / playlist) ---------- */
+#v-list{gap:12px;padding:16px 16px 140px}
+.pl-head{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(92vw,440px)}
+.back{align-self:flex-start;border-radius:999px;padding:9px 18px;font-size:.95rem;font-weight:600}
+.pl-head .cover2{width:200px;height:200px;border-radius:8px;background:#222 var(--cv) center/cover;box-shadow:0 18px 40px #000c}
+.pl-head h2{font-family:"Chewy","Fredoka",system-ui,sans-serif;font-weight:700;font-size:1.6rem;margin:4px 0 0;text-align:center;text-shadow:0 2px 10px #0008}
+.pills{display:flex;gap:10px;margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:12px 24px;font-weight:700}
+.pill svg{width:18px;height:18px;fill:currentColor}
+.tracks{width:min(92vw,440px);list-style:none;margin:6px 0 0;padding:6px;border-radius:22px;background:linear-gradient(180deg,#0000003a,#00000052)!important}
+.tracks:empty{display:none}
+.tracks li,.s-group li{display:flex;align-items:center;gap:12px;padding:9px 8px;border-radius:14px;cursor:pointer}
+.tracks li:active,.tracks li:hover,.s-group li:hover,.s-group li:active{background:#ffffff1a}
+.tracks .n{width:20px;color:var(--mute);text-align:center;font-size:.85rem;flex:none}
+.art{width:44px;height:44px;border-radius:6px;flex:none;background:#333 var(--cv) center/cover}
+.t{flex:1;min-width:0}
+.t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t span{display:block;color:var(--mute);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dur{color:var(--mute);font-size:.85rem;font-variant-numeric:tabular-nums;direction:ltr;flex:none}
+
+/* ---------- search ---------- */
+#v-search{padding:14px 16px 150px;gap:14px}
+.s-top{position:sticky;top:10px;z-index:30;display:flex;gap:10px;align-items:center;width:min(92vw,440px)}
+.s-field{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border-radius:999px;padding:0 16px;height:50px}
+.s-field svg{width:20px;height:20px;fill:#fff;opacity:.8;flex:none}
+.s-field input{flex:1;min-width:0;background:none;border:none;outline:none;color:#fff;font:inherit;font-size:1.05rem}
+.s-field input::placeholder{color:#ffffffa0}
+.s-cancel{flex:none;white-space:nowrap;border-radius:999px;padding:0 16px;height:50px;font-weight:600}
+.s-group{width:min(92vw,440px)}
+.s-group h4{margin:8px 6px 6px;font-size:.85rem;color:#ffffffb0;font-weight:700}
+.s-group ul{list-style:none;margin:0;padding:6px;border-radius:22px;background:linear-gradient(180deg,#0000003a,#00000052)!important}
+.s-empty{color:#ffffffa0;text-align:center;margin-top:30px;line-height:1.6}
+
+/* ---------- sheet (widget + home screen) ---------- */
+.scrim{position:fixed;inset:0;z-index:80;background:#0006;opacity:0;pointer-events:none;transition:opacity .3s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;bottom:0;z-index:81;width:min(100vw,480px);max-height:88vh;overflow:auto;border-radius:28px 28px 0 0;padding:14px 22px calc(26px + env(safe-area-inset-bottom,0px));transform:translate(-50%,105%);transition:transform .45s cubic-bezier(.3,1.2,.5,1);line-height:1.6}
+.sheet.on{transform:translate(-50%,0)}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:#ffffff70;margin:0 auto 12px}
+.sheet h3{margin:4px 0 4px;font-size:1.2rem}
+.sheet ol{margin:4px 0 14px;padding-inline-start:20px}
+.sheet hr{border:none;border-top:1px solid #ffffff30;margin:16px 0 12px}
+.sheet .row{display:flex;gap:10px}
+.sheet .row button{flex:1;border-radius:999px;padding:13px;font-weight:700}
+.sheet textarea{width:100%;height:80px;margin-top:8px;font-size:.7rem;direction:ltr;border-radius:12px}
+.sheet .sub{color:#ffffffb0;font-size:.85rem}
+
+.toast{opacity:0;position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:50%;z-index:90;transform:translate(-50%,-150%);padding:10px 18px;border-radius:999px;font-size:.9rem;font-weight:600;max-width:90vw;text-align:center;transition:transform .4s cubic-bezier(.3,1.3,.5,1),opacity .3s}
+.toast.on{transform:translate(-50%,0);opacity:1}
 @keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.connect{animation:none}.record{animation-duration:12s}.arm{transition:none}}
+@media (prefers-reduced-motion:reduce){.connect{animation:none}.record{animation-duration:12s}}
 </style>
 </head>
 <body>
-<div class="plinth" id="stage">
-  <div class="bg"></div>
-  <div class="platter">
-    <div class="record"><div class="label" id="label"></div></div>
-    <div class="sheen" id="sheen"></div>
+<div id="bg"><i></i></div>
+<div class="toast frost" id="toast"></div>
+
+<!-- ===== PLAYER ===== -->
+<section class="view on" id="v-player">
+  <div class="deck" id="stage">
+    <div class="platter" id="platter" role="button" aria-label="ניגון או עצירה"><div class="slide" id="slide"><div class="record"><div class="label"></div></div></div></div>
+    <div class="arm" id="arm"><i></i><span class="grip" id="grip" aria-label="זרוע"></span></div>
+    <div class="timebub frost" id="timebub"></div>
   </div>
-  <div class="arm"><i></i></div>
+  <div class="info"><h1 id="title"></h1><p id="artist"></p><small id="sub"></small></div>
+  <button class="connect" id="connect" hidden>התחברות לספוטיפיי</button>
+</section>
+
+<!-- ===== LIBRARY ===== -->
+<section class="view" id="v-library">
+  <div class="lib-head">
+    <div class="head-row">
+      <button class="wbtn tint" id="wbtn" aria-label="ווידג'ט ומסך הבית"><svg viewBox="0 0 24 24"><path d="M6 5.5h7.6a6 6 0 0 0-.1 2H6A1.5 1.5 0 0 0 4.5 9v9A1.5 1.5 0 0 0 6 19.5h11a1.5 1.5 0 0 0 1.5-1.5v-4.2a6 6 0 0 0 2-.4V18a3.5 3.5 0 0 1-3.5 3.5H6A3.5 3.5 0 0 1 2.5 18V9A3.5 3.5 0 0 1 6 5.5z"/><rect x="6.5" y="9.5" width="5.5" height="5.5" rx="1.3"/><circle cx="18.5" cy="7.5" r="4.6"/><path d="M17.7 5h1.6v1.7H21v1.6h-1.7V10h-1.6V8.3H16V6.7h1.7z" fill="#555"/></svg></button>
+      <div class="seg tint" id="libSeg"><span class="rest"></span><button data-k="albums" class="on">Albums</button><button data-k="playlists">Playlists</button></div>
+      <button class="sbtn tint" id="sbtn" aria-label="חיפוש"><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 6 12l4.3 4.3-1.5 1.5-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg></button>
+    </div>
+    <button class="motion-btn tint" id="motion" hidden>הטיה עם הטלפון</button>
+  </div>
+  <div class="stack" id="stack"></div>
+</section>
+
+<!-- ===== SEARCH ===== -->
+<section class="view" id="v-search">
+  <div class="s-top">
+    <label class="s-field tint"><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 6 12l4.3 4.3-1.5 1.5-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+      <input id="sq" type="search" placeholder="שירים, אלבומים ופלייליסטים" autocomplete="off" enterkeyhint="search"></label>
+    <button class="s-cancel tint" id="scancel">ביטול</button>
+  </div>
+  <div id="sres" style="display:contents"></div>
+</section>
+
+<!-- ===== ALBUM / PLAYLIST ===== -->
+<section class="view" id="v-list">
+  <div class="pl-head">
+    <button class="back tint" id="back">→ חזרה</button>
+    <div class="cover2" id="phCover"></div>
+    <h2 id="phName"></h2>
+    <span style="color:var(--mute);text-shadow:0 1px 8px #000a" id="phSub"></span>
+    <div class="pills">
+      <button class="pill frost" id="playAll"><svg viewBox="0 0 24 24"><path d="M8 4.5v15L20 12z"/></svg>ניגון</button>
+      <button class="pill tint" id="shuffle"><svg viewBox="0 0 24 24"><path d="M16 4h4v4l-1.5-1.5-3.8 3.8-1.4-1.4 3.8-3.8zM4 18.6 15.6 7l1.4 1.4L5.4 20zM14.5 13.1l1.4-1.4 2.6 2.6L20 13v4h-4l1.5-1.5zM4 5.4 5.4 4l4.8 4.8-1.4 1.4z"/></svg>אקראי</button>
+    </div>
+  </div>
+  <ul class="tracks tint" id="tracks"></ul>
+  <div class="s-empty" id="listMsg"></div>
+</section>
+
+<!-- corner controls -->
+<div class="corner l" id="cornerL"><button class="gbtn tint" id="bPlay" aria-label="ניגון או עצירה"></button></div>
+<div class="corner r" id="cornerR"><button class="gbtn tint" id="bPrev" aria-label="הקודם"></button><button class="gbtn tint" id="bNext" aria-label="הבא"></button></div>
+
+<!-- bottom glass bar -->
+<div class="bar tint" id="bar">
+  <button class="tab on" data-k="player" aria-label="פטיפון"><svg viewBox="0 0 24 24"><path d="M12 3C7 3 3.2 6.9 3.2 11.8V17a3 3 0 0 0 3 3h1.3a1.2 1.2 0 0 0 1.2-1.2v-5.6A1.2 1.2 0 0 0 7.5 12H5.4v-.2C5.4 8.1 8.3 5.2 12 5.2s6.6 2.9 6.6 6.6v.2h-2.1a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h1.3a3 3 0 0 0 3-3v-5.2C20.8 6.9 17 3 12 3z"/></svg></button>
+  <div class="now frost" id="now"><span class="mini"></span><span class="ttl" id="miniTitle">לא מתנגן</span><button class="pp" id="miniPP" aria-label="ניגון או עצירה"></button></div>
+  <button class="tab" data-k="library" aria-label="ספרייה"><svg viewBox="0 0 24 24"><path d="M12 3.2 2.5 11a1 1 0 0 0 1.3 1.6l.9-.7V19a2 2 0 0 0 2 2h3.6v-5.4h3.4V21h3.6a2 2 0 0 0 2-2v-7.1l.9.7a1 1 0 0 0 1.3-1.6z"/></svg></button>
 </div>
-<div class="info"><h1 id="title"></h1><p id="artist"></p></div>
-<div class="row" id="row"></div>
-<div class="search" id="search" hidden><input id="q" type="search" placeholder="חיפוש שיר..." autocomplete="off" enterkeyhint="search"><div id="results"></div></div>
-<small id="note"></small>
-<button class="link" id="wbtn" hidden>ווידג'ט למסך הבית</button>
-<div class="panel" id="wpanel" hidden></div>
+
+<!-- widget + home screen sheet -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet tint" id="sheet">
+  <div class="grab"></div>
+  <h3>ווידג'ט למסך הבית</h3>
+  <ol>
+    <li>מתקינים מה-App Store את האפליקציה החינמית <b>Scriptable</b>.</li>
+    <li>לוחצים כאן על <b>"הכנת קוד לווידג'ט"</b>, מאשרים בספוטיפיי, ואז <b>"העתקת הקוד"</b>.</li>
+    <li>ב-Scriptable לוחצים <b>+</b>, מדביקים, משנים את השם למעלה ל<b>"תקליט"</b> ולוחצים Done.</li>
+    <li>במסך הבית: לחיצה ארוכה ← <b>+</b> ← מחפשים Scriptable ← בוחרים גודל ← מוסיפים.</li>
+    <li>לחיצה ארוכה על הווידג'ט ← עריכה ← ב-Script בוחרים <b>"תקליט"</b>.</li>
+  </ol>
+  <div class="row"><button class="frost" id="wprep">הכנת קוד לווידג'ט</button></div>
+  <textarea class="tint" id="wtext" readonly hidden></textarea>
+  <hr>
+  <h3>הוספת הפטיפון למסך הבית</h3>
+  <ol>
+    <li>פותחים את האתר ב<b>ספארי</b>.</li>
+    <li>לוחצים על כפתור השיתוף (הריבוע עם החץ למעלה).</li>
+    <li>בוחרים <b>"הוספה למסך הבית"</b> (אם צריך, גוללים קצת למטה).</li>
+    <li>לוחצים <b>"הוספה"</b> – והפטיפון מופיע כאפליקציה עם האייקון שלו.</li>
+  </ol>
+  <div class="row"><button class="tint" id="sclose">סגירה</button></div>
+  <p class="sub" id="acct"></p>
+</div>
 
 <script type="text/plain" id="wsrc">
 // Turntable widget for Scriptable
@@ -169,16 +332,21 @@ function record(cover, size) {
   return ctx.getImage();
 }
 
-// רקע: העטיפה מוקטנת ומוגדלת (נראה מטושטש) עם שכבה כהה
+// רקע: העטיפה מוקטנת ומוגדלת בכמה שלבים (נראה כמו בלור) עם שכבה כהה
 function background(cover) {
-  const tiny = new DrawContext();
-  tiny.size = new Size(10, 10);
-  tiny.respectScreenScale = false;
-  tiny.drawImageInRect(cover, new Rect(0, 0, 10, 10));
+  let img = cover;
+  for (const n of [24, 8, 4]) {           // מקטינים בהדרגה
+    const c = new DrawContext(); c.size = new Size(n, n); c.respectScreenScale = false;
+    c.drawImageInRect(img, new Rect(0, 0, n, n)); img = c.getImage();
+  }
+  for (const n of [12, 40, 140]) {        // ומגדילים בהדרגה – כל שלב מחליק עוד
+    const c = new DrawContext(); c.size = new Size(n, n); c.respectScreenScale = false;
+    c.drawImageInRect(img, new Rect(-n * 0.08, -n * 0.08, n * 1.16, n * 1.16)); img = c.getImage();
+  }
   const ctx = new DrawContext();
   ctx.size = new Size(400, 400);
-  ctx.drawImageInRect(tiny.getImage(), new Rect(-40, -40, 480, 480));
-  ctx.setFillColor(new Color("#000000", 0.35));
+  ctx.drawImageInRect(img, new Rect(-30, -30, 460, 460));
+  ctx.setFillColor(new Color("#000000", 0.3));
   ctx.fillRect(new Rect(0, 0, 400, 400));
   return ctx.getImage();
 }
@@ -245,166 +413,421 @@ const widget = await build();
 Script.setWidget(widget);
 Script.complete();
 </script>
+
 <script>
-// ===== הגדרות: הדביקי כאן את ה-Client ID מספוטיפיי =====
+// ===== הגדרות =====
 const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
-// =========================================================
 const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
-const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
+const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative user-library-read";
+const SCOPE_V = "3";
+// ===================
+
 const $ = id => document.getElementById(id);
-const stage = $("stage"), row = $("row"), note = $("note");
-let connected = false, playing = false, lastTrack = "";
-
-const store = {
-  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
-  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
-  del(k){ try { localStorage.removeItem(k); } catch(e){} }
-};
-
-function setPlaying(p){ playing = p; stage.classList.toggle("playing", p); renderButtons(); }
-
-function setTrack(t){
-  if (t.name === lastTrack) return;
-  lastTrack = t.name;
-  $("title").textContent = t.name;
-  $("artist").textContent = t.artist;
-  stage.style.setProperty("--art", t.img ? 'url("' + t.img + '")' : "none");
-  if (t.img) vinyl(t.img); else setVinyl(0,0,.08);
-  const l = $("label");
-  l.innerHTML = t.img ? '<img alt="" src="' + t.img + '">' : "";
-}
-
-// ---------- צבע התקליט מהעטיפה ----------
-function hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;
-  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return [h,s,l];}
-function setVinyl(h,s,l){const c=dl=>"hsl("+Math.round(h)+" "+Math.round(s*100)+"% "+Math.round(Math.max(l+dl,0)*100)+"%)";
-  stage.style.setProperty("--v1",c(0));stage.style.setProperty("--v2",c(-.06));stage.style.setProperty("--v3",c(-.16));}
-function vinyl(src){
-  const im = new Image(); im.crossOrigin = "anonymous";
-  im.onload = () => { try {
-    const c = document.createElement("canvas"); c.width = c.height = 40;
-    const x = c.getContext("2d"); x.drawImage(im,0,0,40,40);
-    const d = x.getImageData(0,0,40,40).data;
-    const bins = Array.from({length:24}, () => ({w:0,r:0,g:0,b:0,n:0})); let ar=0,ag=0,ab=0,an=0;
-    for (let i=0;i<d.length;i+=4){
-      const [h,s,l] = hsl(d[i],d[i+1],d[i+2]); ar+=d[i];ag+=d[i+1];ab+=d[i+2];an++;
-      if (l<.12 || l>.9 || s<.25) continue;
-      const B = bins[Math.floor(h/15)%24]; B.w+=s*Math.max(1-Math.abs(l-.5)*1.6,.05); B.r+=d[i]; B.g+=d[i+1]; B.b+=d[i+2]; B.n++;
-    }
-    const best = bins.reduce((a,b) => b.w>a.w ? b : a);
-    const col = best.n > an*.04 ? [best.r/best.n,best.g/best.n,best.b/best.n] : [ar/an,ag/an,ab/an];
-    const [h,s,l] = hsl(...col);
-    setVinyl(h, s, Math.min(Math.max(l,.18),.55));
-  } catch(e){ setVinyl(0,0,.08); } };
-  im.onerror = () => setVinyl(0,0,.08);
-  im.src = src;
-}
-
-// ---------- ווידג'ט (Scriptable) ----------
-let widgetScript = "";
-async function showWidget(rt){
-  const panel = $("wpanel"); panel.hidden = false;
-  panel.innerHTML = "מכינה את הקוד...";
-  try {
-    const s = $("wsrc").textContent.trim();
-    widgetScript = s.replace("__RT__", rt).replace("__CID__", CLIENT_ID).replace("__URL__", REDIRECT);
-  } catch(e){ panel.textContent = "לא הצלחתי לטעון את קוד הווידג'ט."; return; }
-  panel.innerHTML = '<b>ווידג\'ט למסך הבית</b><ol>' +
-    '<li>מתקינים מה-App Store את האפליקציה החינמית <b>Scriptable</b>.</li>' +
-    '<li>לוחצים כאן על "העתקת הקוד".</li>' +
-    '<li>ב-Scriptable לוחצים על <b>+</b>, מדביקים, משנים את השם למעלה ל"פטיפון" ולוחצים Done.</li>' +
-    '<li>במסך הבית: לחיצה ארוכה, <b>+</b>, מחפשים Scriptable, בוחרים גודל ומוסיפים.</li>' +
-    '<li>לחיצה ארוכה על הווידג\'ט ← עריכה ← ב-Script בוחרים "פטיפון".</li></ol>' +
-    '<div class="row" style="direction:rtl"><button class="main" id="wcopy">העתקת הקוד</button><button id="wclose">סגירה</button></div><textarea id="wtext" readonly hidden></textarea>';
-  $("wclose").onclick = () => { panel.hidden = true; panel.innerHTML = ""; scrollTo(0,0); };
-  $("wcopy").onclick = () => {
-    const done = () => { $("wcopy").textContent = "הועתק ✓"; };
-    const manual = () => { const t = $("wtext"); t.hidden = false; t.value = widgetScript; t.focus(); t.select();
-      try { if (document.execCommand("copy")) return done(); } catch(e){}
-      $("wcopy").textContent = "סמני את הטקסט למטה והעתיקי"; };
-    if (navigator.clipboard) navigator.clipboard.writeText(widgetScript).then(done, manual); else manual();
-  };
-}
-
-// ---------- Spotify (PKCE) ----------
-const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62]).join("");
-const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
-
-async function login(){
-  const v = rnd(64); store.set("pkce", v);
-  const ch = b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
-  const u = new URL("https://accounts.spotify.com/authorize");
-  u.search = new URLSearchParams({client_id:CLIENT_ID,response_type:"code",redirect_uri:REDIRECT,scope:SCOPES,code_challenge_method:"S256",code_challenge:ch});
-  location.href = u;
-}
-
-async function token(body, save=true){
-  const r = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:CLIENT_ID,...body})});
-  if (!r.ok) throw new Error("token");
-  const d = await r.json();
-  if (save){ store.set("at", d.access_token); if (d.refresh_token) store.set("rt", d.refresh_token); }
-  return d;
-}
-
-async function api(path, method="GET"){
-  let r = await fetch("https://api.spotify.com/v1/me/player" + path,{method,headers:{Authorization:"Bearer " + store.get("at")}});
-  if (r.status === 401 && store.get("rt")){
-    await token({grant_type:"refresh_token",refresh_token:store.get("rt")});
-    r = await fetch("https://api.spotify.com/v1/me/player" + path,{method,headers:{Authorization:"Bearer " + store.get("at")}});
-  }
-  return r;
-}
-
-async function poll(){
-  try {
-    const r = await api("/currently-playing");
-    if (r.status === 200){
-      const d = await r.json();
-      if (d && d.item){
-        setTrack({name:d.item.name,artist:d.item.artists.map(a => a.name).join(", "),img:(d.item.album.images[0]||{}).url});
-        setPlaying(!!d.is_playing);
-        return;
-      }
-    }
-    setPlaying(false);
-    if (r.status === 204) { $("title").textContent = "אין שיר מתנגן"; $("artist").textContent = "הפעילי שיר בספוטיפיי"; lastTrack = ""; }
-  } catch(e){ note.textContent = "לא הצלחתי להתחבר לספוטיפיי. נסי להתחבר שוב."; }
-}
-
-async function control(a){
-  if (!connected){
-    if (a === "toggle"){ if (audio.src){ playing ? audio.pause() : audio.play().catch(()=>{}); } setPlaying(!playing); }
-    return;
-  }
-  if (a === "toggle") await api(playing ? "/pause" : "/play", "PUT");
-  if (a === "next") await api("/next", "POST");
-  if (a === "prev") await api("/previous", "POST");
-  setTimeout(poll, 600);
-}
-
 const ICONS = {
   prev:'<svg viewBox="0 0 24 24"><path d="M6 5h2.4v14H6zM19 5v14L9 12z"/></svg>',
   next:'<svg viewBox="0 0 24 24"><path d="M15.6 5H18v14h-2.4zM5 5v14l10-7z"/></svg>',
   play:'<svg viewBox="0 0 24 24"><path d="M8 4.5v15L20 12z"/></svg>',
   pause:'<svg viewBox="0 0 24 24"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z"/></svg>'
 };
-function renderButtons(){
-  row.innerHTML = "";
-  const ic = (name, label, fn, big) => { const b = document.createElement("button"); b.className = "ic" + (big ? " big" : ""); b.innerHTML = ICONS[name]; b.setAttribute("aria-label", label); b.onclick = fn; row.appendChild(b); };
-  if (connected){
-    ic("prev", "הקודם", () => control("prev"));
-    ic(playing ? "pause" : "play", playing ? "עצירה" : "ניגון", () => control("toggle"), true);
-    ic("next", "הבא", () => control("next"));
-  } else {
-    ic(playing ? "pause" : "play", playing ? "עצירה" : "ניגון", () => control("toggle"), true);
-    const b = document.createElement("button"); b.className = "connect"; b.textContent = "התחברות לספוטיפיי"; b.onclick = () => login(); row.appendChild(b);
-  }
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+let toastT;
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 3200); }
+const pick = (imgs, i = 0) => (imgs && (imgs[i] || imgs[0]) || {}).url || "";
+
+// ---------- album colour (two stages: big soft area wins, else vivid non-skin colour) ----------
+function hsl(r,g,b){ r/=255; g/=255; b/=255; const mx = Math.max(r,g,b), mn = Math.min(r,g,b); let h = 0, s = 0, l = (mx+mn)/2;
+  if (mx !== mn){ const d = mx-mn; s = l > .5 ? d/(2-mx-mn) : d/(mx+mn); h = mx === r ? (g-b)/d + (g<b?6:0) : mx === g ? (b-r)/d + 2 : (r-g)/d + 4; h *= 60; } return [h,s,l]; }
+const colorCache = {};
+function albumColor(src){
+  if (!src) return Promise.resolve(null);
+  if (colorCache[src]) return colorCache[src];
+  return colorCache[src] = new Promise(res => {
+    const im = new Image(); im.crossOrigin = "anonymous";
+    im.onload = () => { try {
+      const c = document.createElement("canvas"); c.width = c.height = 40; const x = c.getContext("2d"); x.drawImage(im,0,0,40,40);
+      const d = x.getImageData(0,0,40,40).data, total = d.length/4;
+      const bins = Array.from({length:24}, () => ({n:0,w:0,r:0,g:0,b:0}));
+      for (let i = 0; i < d.length; i += 4){
+        const [h,s,l] = hsl(d[i],d[i+1],d[i+2]);
+        if (l < .1 || l > .93 || s < .08) continue;
+        const skin = h >= 10 && h <= 45 && s > .15 && s < .65 && l > .3 && l < .85;
+        const B = bins[Math.floor(h/15) % 24]; B.n++; B.r += d[i]; B.g += d[i+1]; B.b += d[i+2];
+        if (!skin && s >= .25) B.w += s * Math.max(1 - Math.abs(l - .5)*1.6, .05);
+      }
+      const big = bins.reduce((a,b) => b.n > a.n ? b : a);
+      const viv = bins.reduce((a,b) => b.w > a.w ? b : a);
+      const B = big.n > total*.5 ? big : (viv.w > 0 ? viv : big);
+      if (!B.n){ res(null); return; }
+      let [h,s,l] = hsl(B.r/B.n, B.g/B.n, B.b/B.n);
+      s = Math.min(1, s*1.35 + .05); l = Math.min(Math.max(l, .22), .6);
+      res([h,s,l]);
+    } catch(e){ res(null); } };
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+const hslCss = (c, dl = 0) => c ? "hsl(" + Math.round(c[0]) + " " + Math.round(c[1]*100) + "% " + Math.round(Math.max(c[2]+dl, 0)*100) + "%)" : null;
+
+// ---------- Spotify auth (PKCE) ----------
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62]).join("");
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+async function login(mode){
+  if (mode) store.set("mode", mode);
+  const v = rnd(64); store.set("pkce", v);
+  const ch = b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
+  const u = new URL("https://accounts.spotify.com/authorize");
+  u.search = new URLSearchParams({client_id:CLIENT_ID, response_type:"code", redirect_uri:REDIRECT, scope:SCOPES, code_challenge_method:"S256", code_challenge:ch});
+  location.href = u;
+}
+async function token(body, save = true){
+  const r = await fetch("https://accounts.spotify.com/api/token", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({client_id:CLIENT_ID, ...body})});
+  if (!r.ok) throw new Error("token");
+  const d = await r.json();
+  if (save){ store.set("at", d.access_token); if (d.refresh_token) store.set("rt", d.refresh_token); store.set("sv", SCOPE_V); }
+  return d;
+}
+async function api(path, opt = {}){
+  const go = () => fetch("https://api.spotify.com/v1" + path, {method: opt.method || "GET", headers: {Authorization: "Bearer " + store.get("at"), ...(opt.body ? {"Content-Type": "application/json"} : {})}, body: opt.body ? JSON.stringify(opt.body) : undefined});
+  let r = await go();
+  if (r.status === 401 && store.get("rt")){ try { await token({grant_type:"refresh_token", refresh_token:store.get("rt")}); r = await go(); } catch(e){} }
+  return r;
+}
+async function getJSON(path){ const r = await api(path); if (!r.ok) throw r; return r.status === 204 ? null : r.json(); }
+// playback commands, with a fallback to any available device
+async function cmd(method, path, body){
+  try {
+    let r = await api(path, {method, body});
+    if (r.status === 404){
+      const d = await getJSON("/me/player/devices").catch(() => null);
+      const dev = d && (d.devices || []).find(x => !x.is_restricted);
+      if (!dev){ toast("פתחי את ספוטיפיי באחד המכשירים ונסי שוב"); return false; }
+      r = await api(path + (path.includes("?") ? "&" : "?") + "device_id=" + dev.id, {method, body});
+    }
+    if (r.status === 403){ toast("את זה ספוטיפיי מאפשרת רק עם Premium"); return false; }
+    if (!r.ok){ toast("משהו לא עבד, נסי שוב"); return false; }
+    return true;
+  } catch(e){ toast("אין חיבור לספוטיפיי כרגע"); return false; }
 }
 
-// ---------- חיפוש שיר (בלי התחברות) ----------
-const audio = new Audio();
-audio.onended = () => setPlaying(false);
-let jsonpN = 0, qTimer;
+// ---------- state ----------
+const stage = $("stage"), armEl = $("arm"), slide = $("slide");
+const REST = -5, A0 = 13, A1 = 33;
+let connected = false, cur = null, playing = false, pos = 0, len = 0, idle = false, armDrag = false, view = "player", sliding = false;
+// visitor (not connected) plays 30-second previews
+const audio = new Audio(); let previewQ = [], previewI = -1;
+audio.onended = () => { previewNext(1); };
+
+function setArm(deg, cls){ armEl.classList.remove("track","drag"); if (cls) armEl.classList.add(cls); armEl.style.setProperty("--arm", deg + "deg"); }
+const armForPos = () => A0 + (A1 - A0) * (len ? Math.min(1, pos/len) : 0);
+function renderPlaying(){
+  stage.classList.toggle("playing", playing); document.body.classList.toggle("is-playing", playing);
+  $("bPlay").innerHTML = ICONS[playing ? "pause" : "play"]; $("miniPP").innerHTML = ICONS[playing ? "pause" : "play"];
+  if (!armDrag) setArm(playing ? armForPos() : REST);
+}
+function showTrack(t){
+  const changed = !cur || !t || cur.id !== t.id;
+  cur = t;
+  $("title").textContent = t ? t.name : ""; $("artist").textContent = t ? t.artist : "";
+  $("sub").textContent = t && idle ? "השיר האחרון ששמעת · לחצי ▶ כדי לנגן" : "";
+  $("miniTitle").textContent = t ? t.name : "לא מתנגן";
+  if (!changed) return;
+  const root = document.documentElement.style;
+  if (t && t.img){
+    root.setProperty("--art", 'url("' + t.img + '")'); $("bg").classList.add("has");
+    document.body.style.setProperty("--lab", 'url("' + t.img + '")');
+    albumColor(t.img).then(c => { if (cur !== t) return;
+      document.body.style.setProperty("--v1", hslCss(c) || "#141416"); stage.style.setProperty("--v2", hslCss(c, -.07) || "#0b0b0c"); });
+  } else {
+    $("bg").classList.remove("has"); document.body.style.removeProperty("--lab"); document.body.style.removeProperty("--v1"); stage.style.removeProperty("--v2");
+  }
+}
+// local clock between polls
+setInterval(() => {
+  if (connected) { if (playing && !armDrag){ pos += .5; setArm(armForPos(), "track"); } }
+  else if (!audio.paused && !armDrag){ pos = audio.currentTime; len = audio.duration || 30; setArm(armForPos(), "track"); }
+}, 500);
+
+// ---------- Spotify polling ----------
+let lastRecentTry = 0;
+async function poll(){
+  if (!connected || sliding) return;
+  try {
+    const r = await api("/me/player/currently-playing");
+    if (r.status === 200){
+      const d = await r.json();
+      if (d && d.item && d.item.type === "track"){
+        idle = false;
+        const it = d.item;
+        showTrack({id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000});
+        len = it.duration_ms/1000; pos = (d.progress_ms || 0)/1000;
+        playing = !!d.is_playing; renderPlaying(); return;
+      }
+    }
+    if (r.status === 401){ connected = false; setupVisitor("צריך להתחבר שוב לספוטיפיי"); return; }
+    playing = false; renderPlaying();
+    if ((!cur || !idle) && Date.now() - lastRecentTry > 60000){
+      lastRecentTry = Date.now();
+      const rp = await getJSON("/me/player/recently-played?limit=1").catch(() => null);
+      const it = rp && rp.items && rp.items[0] && rp.items[0].track;
+      idle = true;
+      if (it) { cur = null; showTrack({id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000}); len = it.duration_ms/1000; pos = 0; }
+      else if (!cur) showTrack(null);
+    }
+  } catch(e){}
+}
+
+// ---------- controls ----------
+async function toggle(){
+  if (!connected){
+    if (previewI < 0){ go("search"); return; }
+    if (audio.paused){ audio.play().catch(() => {}); playing = true; } else { audio.pause(); playing = false; }
+    renderPlaying(); return;
+  }
+  if (playing){ playing = false; renderPlaying(); if (!await cmd("PUT", "/me/player/pause")){ playing = true; renderPlaying(); } }
+  else {
+    playing = true; renderPlaying();
+    const ok = idle && cur ? await cmd("PUT", "/me/player/play", {uris: [cur.uri]}) : await cmd("PUT", "/me/player/play");
+    if (!ok){ playing = false; renderPlaying(); } else { idle = false; $("sub").textContent = ""; }
+  }
+  setTimeout(poll, 700);
+}
+async function skip(dir){
+  if (!connected){ previewNext(dir); return true; }
+  if (idle) return false;
+  return cmd("POST", dir > 0 ? "/me/player/next" : "/me/player/previous");
+}
+function previewNext(dir){
+  if (!previewQ.length){ playing = false; renderPlaying(); return; }
+  previewI = (previewI + dir + previewQ.length) % previewQ.length; startPreview();
+}
+function startPreview(){
+  const t = previewQ[previewI]; idle = false;
+  showTrack(t); pos = 0; len = 30;
+  if (t.preview){ audio.src = t.preview; audio.play().then(() => { playing = true; renderPlaying(); }).catch(() => { playing = false; renderPlaying(); }); }
+  playing = true; renderPlaying();
+}
+// slide the record out, change the song, slide the new record in from the other side
+async function changeTrack(dir, fromX = 0, speed = 0){
+  if (sliding || (!cur && connected)) { slide.style.transition = "transform .4s"; slide.style.transform = "none"; return; }
+  sliding = true;
+  const W = stage.offsetWidth * 1.25, dist = Math.abs(dir*W - fromX);
+  const outMs = Math.max(260, Math.min(700, speed > .2 ? dist / speed : 520));
+  slide.style.transition = `transform ${outMs}ms cubic-bezier(.3,.6,.4,1)`;
+  slide.style.transform = `translateX(${dir*W}px) rotate(${dir*40}deg)`;
+  const oldId = cur && cur.id;
+  const ok = await skip(dir);
+  await new Promise(r => setTimeout(r, outMs));
+  if (connected && ok){ sliding = false; for (let i = 0; i < 8; i++){ await poll(); if (cur && cur.id !== oldId) break; await new Promise(r => setTimeout(r, 350)); } sliding = true; }
+  slide.style.transition = "none"; slide.style.transform = `translateX(${-dir*W}px) rotate(${-dir*40}deg)`;
+  void slide.offsetWidth;
+  slide.style.transition = "transform 650ms cubic-bezier(.2,.8,.25,1)"; slide.style.transform = "none";
+  setTimeout(() => { sliding = false; }, 650);
+}
+$("bPlay").onclick = e => { e.stopPropagation(); toggle(); };
+$("miniPP").onclick = e => { e.stopPropagation(); toggle(); keepBar(); };
+$("bNext").onclick = e => { e.stopPropagation(); changeTrack(1); };
+$("bPrev").onclick = e => { e.stopPropagation(); changeTrack(-1); };
+$("bPrev").innerHTML = ICONS.prev; $("bNext").innerHTML = ICONS.next;
+
+// drag the record with the finger
+const platter = $("platter");
+let sx = null, sy = 0, lastX = 0, lastT = 0, vel = 0, swiping = false;
+platter.addEventListener("pointerdown", e => { if (sliding) return; e.stopPropagation(); sx = lastX = e.clientX; sy = e.clientY; lastT = performance.now(); vel = 0; swiping = false; platter.setPointerCapture(e.pointerId); slide.style.transition = "none"; });
+platter.addEventListener("pointermove", e => { if (sx === null) return; const dx = e.clientX - sx;
+  if (!swiping && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - sy)) swiping = true;
+  if (swiping){ const now = performance.now(); vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now; slide.style.transform = `translateX(${dx}px) rotate(${dx/6}deg)`; } });
+const platterUp = e => { if (sx === null) return; const dx = e.clientX - sx; sx = null; e.stopPropagation();
+  if (!swiping){ if (Math.abs(dx) < 8) toggle(); return; }
+  const W = stage.offsetWidth;
+  if ((Math.abs(dx) > W*0.3 || Math.abs(vel) > .6) && Math.sign(vel || dx) === Math.sign(dx)) changeTrack(dx > 0 ? 1 : -1, dx, Math.abs(vel));
+  else { slide.style.transition = "transform .4s cubic-bezier(.3,1.4,.5,1)"; slide.style.transform = "none"; } };
+platter.addEventListener("pointerup", platterUp); platter.addEventListener("pointercancel", platterUp);
+platter.addEventListener("click", e => e.stopPropagation());
+
+// tonearm: drag to seek, lift off to stop, put back to continue
+const grip = $("grip"), bub = $("timebub");
+function armAngleFrom(e){ const r = armEl.getBoundingClientRect(), d = stage.getBoundingClientRect();
+  return Math.atan2(r.left + r.width/2 - e.clientX, e.clientY - (d.top + d.height*0.02 + 8)) * 180 / Math.PI; }
+grip.addEventListener("pointerdown", e => { e.stopPropagation(); e.preventDefault(); armDrag = true; grip.setPointerCapture(e.pointerId); });
+grip.addEventListener("pointermove", e => { if (!armDrag) return;
+  const a = Math.max(REST, Math.min(A1 + 2, armAngleFrom(e))); setArm(a, "drag");
+  const d = stage.getBoundingClientRect(); bub.style.left = (e.clientX - d.left) + "px"; bub.style.top = (e.clientY - d.top) + "px";
+  bub.textContent = (a < A0 - 4 || !len) ? "⏸ הרמת הזרוע" : fmt(Math.min(1, Math.max(0, (a - A0)/(A1 - A0))) * len) + " / " + fmt(len);
+  bub.classList.add("show"); });
+const armUp = async e => { if (!armDrag) return; armDrag = false; bub.classList.remove("show");
+  const a = Math.max(REST, Math.min(A1, armAngleFrom(e)));
+  if (!cur){ renderPlaying(); return; }
+  if (a < A0 - 4){ if (playing) await toggle(); else renderPlaying(); return; }
+  const target = Math.min(1, Math.max(0, (a - A0)/(A1 - A0))) * len;
+  pos = target;
+  if (!connected){ audio.currentTime = Math.min(target, (audio.duration || 30) - .5); if (audio.paused) toggle(); else renderPlaying(); return; }
+  if (idle){ playing = true; renderPlaying(); const ok = await cmd("PUT", "/me/player/play", {uris: [cur.uri], position_ms: Math.round(target*1000)}); if (ok){ idle = false; $("sub").textContent = ""; } else { playing = false; renderPlaying(); } return; }
+  await cmd("PUT", "/me/player/seek?position_ms=" + Math.round(target*1000));
+  if (!playing){ playing = true; renderPlaying(); if (!await cmd("PUT", "/me/player/play")){ playing = false; renderPlaying(); } } else renderPlaying();
+  setTimeout(poll, 800); };
+grip.addEventListener("pointerup", armUp); grip.addEventListener("pointercancel", armUp);
+grip.addEventListener("click", e => e.stopPropagation());
+
+// ---------- navigation + bottom bar ----------
+let hideT;
+function syncChrome(){
+  const show = view !== "player" || $("bar").classList.contains("tap");
+  $("bar").classList.toggle("show", show);
+  ["cornerL","cornerR"].forEach(id => $(id).classList.toggle("hide", show || view !== "player"));
+}
+function keepBar(){ if (view !== "player") return; $("bar").classList.add("tap"); syncChrome(); clearTimeout(hideT); hideT = setTimeout(() => { $("bar").classList.remove("tap"); syncChrome(); }, 4000); }
+document.addEventListener("click", e => { if (view === "player" && !e.target.closest("button, input, .bar, .sheet")) keepBar(); });
+$("bar").querySelectorAll(".tab").forEach(t => t.onclick = e => { e.stopPropagation(); go(t.dataset.k); });
+$("now").onclick = e => { if (e.target.closest(".pp")) return; e.stopPropagation(); go("player"); };
+let prevView = "library";
+function go(v){
+  if (v !== view && view !== "search") prevView = view;
+  view = v;
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  $("bar").querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.k === (v === "player" ? "player" : "library")));
+  $("bar").classList.remove("tap"); syncChrome();
+  scrollTo(0, 0);
+  if (v === "library"){ loadLibrary(); requestAnimationFrame(() => { $("libSeg")._place(); layoutStack(); }); }
+}
+
+// ---------- library ----------
+function segInit(el, onPick){
+  const rest = el.querySelector(".rest"), btns = [...el.querySelectorAll("button")];
+  const place = () => { const on = el.querySelector("button.on"); if (!on || !on.offsetWidth) return; rest.style.left = on.offsetLeft + "px"; rest.style.width = on.offsetWidth + "px"; };
+  btns.forEach(b => b.onclick = e => { e.stopPropagation(); btns.forEach(o => o.classList.toggle("on", o === b)); place(); onPick(b.dataset.k); });
+  el._place = place; requestAnimationFrame(place);
+}
+let kind = "albums", phone = 0, lib = {albums: null, playlists: null};
+async function loadLibrary(){
+  if (!connected){ $("stack").innerHTML = '<div class="msg">כדי לראות את האלבומים והפלייליסטים שלך צריך להתחבר לספוטיפיי<button class="connect" onclick="login()">התחברות לספוטיפיי</button><span>אפשר גם לחפש שירים בזכוכית המגדלת 🔍</span></div>'; return; }
+  if (lib[kind]){ renderStack(); return; }
+  $("stack").innerHTML = '<div class="msg">טוענת…</div>';
+  const k = kind;
+  try {
+    if (k === "albums"){
+      const d = await getJSON("/me/albums?limit=50");
+      lib.albums = (d.items || []).map(x => x.album).filter(Boolean).map(a => ({kind:"album", id:a.id, uri:a.uri, name:a.name, sub:a.artists.map(z => z.name).join(", "), img:pick(a.images, 1), big:pick(a.images), total:a.total_tracks}));
+    } else {
+      const d = await getJSON("/me/playlists?limit=50");
+      lib.playlists = (d.items || []).filter(Boolean).map(p => ({kind:"playlist", id:p.id, uri:p.uri, name:p.name, sub:(p.owner && p.owner.display_name) || "", img:pick(p.images, 1) || pick(p.images), big:pick(p.images), total:(p.tracks && p.tracks.total) || (p.items && p.items.total) || 0}));
+    }
+  } catch(e){ lib[k] = []; $("stack").innerHTML = '<div class="msg">לא הצלחתי לטעון מספוטיפיי. אם עדכנת את האתר לאחרונה – התנתקי והתחברי שוב (בכפתור הווידג\'ט למעלה).</div>'; return; }
+  if (k === kind) renderStack();
+}
+function renderStack(){
+  const st = $("stack"), list = lib[kind] || [];
+  st.innerHTML = list.length ? "" : '<div class="msg">' + (kind === "albums" ? "אין אלבומים שמורים בספרייה שלך" : "אין פלייליסטים בספרייה שלך") + '</div>';
+  list.forEach((p, i) => {
+    const it = document.createElement("div"); it.className = "item"; it.style.zIndex = 10 + i;
+    if (p.img) it.style.setProperty("--cv", 'url("' + p.img + '")');
+    it.innerHTML = '<div class="spine"><b></b><span></span></div><div class="persp"><div class="cover"></div></div>';
+    it.querySelector("b").textContent = p.name; it.querySelector("span").textContent = p.sub;
+    albumColor(p.img).then(c => { if (!c) return; it.style.setProperty("--sc", hslCss(c)); it.style.setProperty("--st", c[2] > .62 ? "#111" : "#fff"); });
+    it.onclick = () => openList(p);
+    st.appendChild(it);
+  });
+  layoutStack();
+}
+function layoutStack(){
+  const st = $("stack"); if (!st.offsetWidth) return;
+  const vh = innerHeight; st.style.setProperty("--slot", Math.round(st.offsetWidth * 0.66) + "px");
+  st.querySelectorAll(".item").forEach(it => {
+    const y = it.getBoundingClientRect().top / vh;
+    const a = Math.max(8, Math.min(80, 18 + y * 46 + phone));
+    it.querySelector(".cover").style.transform = `rotateX(${-a}deg)`;
+  });
+}
+addEventListener("scroll", () => { if (view === "library") requestAnimationFrame(layoutStack); }, {passive:true});
+addEventListener("resize", () => { layoutStack(); $("libSeg")._place(); });
+segInit($("libSeg"), k => { kind = k; loadLibrary(); });
+function onOrient(e){ if (e.beta != null && view === "library"){ phone = Math.max(-25, Math.min(25, (50 - e.beta) * 0.8)); layoutStack(); } }
+if (window.DeviceOrientationEvent){
+  if (typeof DeviceOrientationEvent.requestPermission === "function"){
+    if (store.get("tilt") !== "no"){ $("motion").hidden = false; }
+    $("motion").onclick = () => DeviceOrientationEvent.requestPermission().then(r => { if (r === "granted"){ addEventListener("deviceorientation", onOrient); $("motion").hidden = true; } else { store.set("tilt","no"); $("motion").hidden = true; } }).catch(() => { $("motion").hidden = true; });
+  } else addEventListener("deviceorientation", onOrient);
+}
+
+// ---------- album / playlist page ----------
+let openItem = null;
+async function openList(p){
+  openItem = p;
+  $("phCover").style.setProperty("--cv", 'url("' + (p.big || p.img) + '")'); $("phName").textContent = p.name;
+  $("phSub").textContent = (p.kind === "album" ? "אלבום" : "פלייליסט") + (p.sub ? " · " + p.sub : "") + (p.total ? " · " + p.total + " שירים" : "");
+  const ul = $("tracks"); ul.innerHTML = ""; $("listMsg").textContent = "טוענת…";
+  go("list");
+  let rows = [];
+  try {
+    if (p.kind === "album"){
+      const d = await getJSON("/albums/" + p.id + "/tracks?limit=50");
+      rows = (d.items || []).map(t => ({uri:t.uri, name:t.name, artist:t.artists.map(a => a.name).join(", "), dur:t.duration_ms/1000, img:p.img}));
+    } else {
+      let d; try { d = await getJSON("/playlists/" + p.id + "/items?limit=100"); } catch(e){ d = await getJSON("/playlists/" + p.id + "/tracks?limit=100"); }
+      rows = (d.items || []).map(x => x && (x.track || x.item)).filter(t => t && t.type === "track" && t.uri && !t.is_local)
+        .map(t => ({uri:t.uri, name:t.name, artist:(t.artists || []).map(a => a.name).join(", "), dur:t.duration_ms/1000, img:pick(t.album && t.album.images, 2)}));
+    }
+    $("listMsg").textContent = rows.length ? "" : "אין כאן שירים להצגה";
+  } catch(e){ $("listMsg").textContent = "ספוטיפיי לא נותנת לפתוח את הרשימה הזאת, אבל אפשר לנגן אותה עם הכפתורים למעלה."; }
+  if (openItem !== p) return;
+  rows.forEach((t, k) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="n">' + (k+1) + '</span><span class="art"></span><div class="t"><b></b><span></span></div><span class="dur"></span>';
+    if (t.img) li.querySelector(".art").style.setProperty("--cv", 'url("' + t.img + '")');
+    li.querySelector("b").textContent = t.name; li.querySelector(".t span").textContent = t.artist; li.querySelector(".dur").textContent = fmt(t.dur);
+    li.onclick = () => playContext(p.uri, t.uri, false);
+    ul.appendChild(li);
+  });
+}
+async function playContext(ctx, trackUri, shuffle){
+  if (!connected){ login(); return; }
+  if (shuffle !== null){ await cmd("PUT", "/me/player/shuffle?state=" + (shuffle ? "true" : "false")); }
+  const body = ctx ? {context_uri: ctx} : {uris: [trackUri]};
+  if (ctx && trackUri) body.offset = {uri: trackUri};
+  if (await cmd("PUT", "/me/player/play", body)){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
+}
+$("back").onclick = e => { e.stopPropagation(); go(prevView === "search" ? "search" : "library"); };
+$("playAll").onclick = () => playContext(openItem.uri, null, false);
+$("shuffle").onclick = () => playContext(openItem.uri, null, true);
+
+// ---------- search ----------
+let searchFrom = "library", sT;
+$("sbtn").onclick = e => { e.stopPropagation(); searchFrom = view; go("search"); $("sq").value = ""; renderEmpty(); setTimeout(() => $("sq").focus(), 60); };
+$("scancel").onclick = e => { e.stopPropagation(); go(searchFrom === "search" ? "library" : searchFrom); };
+function renderEmpty(){ $("sres").innerHTML = '<div class="s-empty">' + (connected ? "כתבי שם של שיר, זמר, אלבום או פלייליסט" : "כתבו שם של שיר – ותשמעו 30 שניות ממנו על הפטיפון.<br>כדי לחפש בכל ספוטיפיי צריך להתחבר.") + '</div>'; }
+$("sq").oninput = () => { clearTimeout(sT); const q = $("sq").value.trim(); if (!q){ renderEmpty(); return; } sT = setTimeout(() => runSearch(q), 380); };
+function group(title, rows){ if (!rows.length) return; const g = document.createElement("div"); g.className = "s-group";
+  g.innerHTML = "<h4>" + title + "</h4>"; const ul = document.createElement("ul"); ul.className = "tint"; rows.forEach(r => ul.appendChild(r)); g.appendChild(ul); $("sres").appendChild(g); }
+function row(img, a, b, fn){ const li = document.createElement("li"); li.innerHTML = '<span class="art"></span><div class="t"><b></b><span></span></div>';
+  if (img) li.querySelector(".art").style.setProperty("--cv", 'url("' + img + '")'); li.querySelector("b").textContent = a; li.querySelector(".t span").textContent = b; li.onclick = fn; return li; }
+async function runSearch(q){
+  const box = $("sres");
+  if (!connected){
+    try {
+      const res = await itunes(q); if ($("sq").value.trim() !== q) return; box.innerHTML = "";
+      const list = res.map(it => ({id: "it" + it.trackId, name: it.trackName, artist: it.artistName, img: (it.artworkUrl100 || "").replace("100x100bb", "600x600bb"), preview: it.previewUrl}));
+      group("שירים", list.map((t, k) => row(t.img, t.name, t.artist, () => { previewQ = list; previewI = k; go("player"); startPreview(); })));
+      if (!list.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
+    } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסו שוב</div>'; }
+    return;
+  }
+  try {
+    const d = await getJSON("/search?type=track,album,playlist&limit=10&q=" + encodeURIComponent(q));
+    if ($("sq").value.trim() !== q) return; box.innerHTML = "";
+    const tr = ((d.tracks && d.tracks.items) || []).filter(Boolean);
+    const al = ((d.albums && d.albums.items) || []).filter(Boolean);
+    const pl = ((d.playlists && d.playlists.items) || []).filter(Boolean);
+    group("שירים", tr.map(t => row(pick(t.album.images, 2), t.name, t.artists.map(a => a.name).join(", ") + " · " + fmt(t.duration_ms/1000), () => playContext(t.album.uri, t.uri, null))));
+    group("אלבומים", al.map(a => row(pick(a.images, 2), a.name, "אלבום · " + a.artists.map(z => z.name).join(", "), () => openList({kind:"album", id:a.id, uri:a.uri, name:a.name, sub:a.artists.map(z => z.name).join(", "), img:pick(a.images, 1), big:pick(a.images), total:a.total_tracks}))));
+    group("פלייליסטים", pl.map(p => row(pick(p.images, 0), p.name, "פלייליסט · " + ((p.owner && p.owner.display_name) || ""), () => openList({kind:"playlist", id:p.id, uri:p.uri, name:p.name, sub:(p.owner && p.owner.display_name) || "", img:pick(p.images, 0), big:pick(p.images), total:(p.tracks && p.tracks.total) || 0}))));
+    if (!box.children.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
+  } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסי שוב</div>'; }
+}
+let jsonpN = 0;
 function itunes(term){
   return new Promise((res, rej) => {
     const cb = "__it" + (++jsonpN), sc = document.createElement("script");
@@ -412,70 +835,57 @@ function itunes(term){
     const t = setTimeout(() => { done(); rej(); }, 8000);
     window[cb] = d => { done(); res((d && d.results) || []); };
     sc.onerror = () => { done(); rej(); };
-    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=6&term=" + encodeURIComponent(term) + "&callback=" + cb;
+    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=12&term=" + encodeURIComponent(term) + "&callback=" + cb;
     document.body.appendChild(sc);
   });
 }
-function renderResults(list){
-  const box = $("results"); box.innerHTML = "";
-  if (!list.length){ box.textContent = "לא נמצאו שירים"; return; }
-  list.forEach(it => {
-    const d = document.createElement("button"); d.className = "r";
-    const img = document.createElement("img"); img.alt = ""; img.src = it.artworkUrl100 || "";
-    const tx = document.createElement("div");
-    const b = document.createElement("b"); b.textContent = it.trackName;
-    const sp = document.createElement("span"); sp.textContent = it.artistName;
-    tx.append(b, sp); d.append(img, tx);
-    d.onclick = () => pick(it);
-    box.appendChild(d);
-  });
-}
-function pick(it){
-  $("results").innerHTML = ""; $("q").value = ""; $("q").blur();
-  lastTrack = "";
-  setTrack({name: it.trackName, artist: it.artistName, img: (it.artworkUrl100 || "").replace("100x100bb", "600x600bb")});
-  if (it.previewUrl){ audio.src = it.previewUrl; audio.play().catch(() => {}); }
-  setPlaying(true);
-}
-$("q").oninput = () => {
-  clearTimeout(qTimer);
-  const v = $("q").value.trim();
-  if (!v){ $("results").innerHTML = ""; return; }
-  qTimer = setTimeout(async () => {
-    try { renderResults(await itunes(v)); } catch(e){ $("results").textContent = "החיפוש לא עבד, נסו שוב."; }
-  }, 350);
+
+// ---------- sheet: widget + home screen ----------
+let widgetScript = "";
+const sheet = on => { $("sheet").classList.toggle("on", on); $("scrim").classList.toggle("on", on); };
+$("wbtn").onclick = e => { e.stopPropagation(); sheet(true); };
+$("sclose").onclick = $("scrim").onclick = () => sheet(false);
+$("wprep").onclick = () => {
+  if (!widgetScript){ login("widget"); return; }
+  const done = () => { $("wprep").textContent = "הועתק ✓"; };
+  const manual = () => { const t = $("wtext"); t.hidden = false; t.value = widgetScript; t.focus(); t.select();
+    try { if (document.execCommand("copy")) return done(); } catch(e){} $("wprep").textContent = "סמני את הטקסט והעתיקי"; };
+  if (navigator.clipboard) navigator.clipboard.writeText(widgetScript).then(done, manual); else manual();
 };
+function readyWidget(rt){
+  widgetScript = $("wsrc").textContent.trim().replace("__RT__", rt).replace("__CID__", CLIENT_ID).replace("__URL__", REDIRECT);
+  $("wprep").textContent = "העתקת הקוד"; go("library"); sheet(true);
+}
+function renderAcct(){
+  $("acct").innerHTML = connected ? 'מחוברת לספוטיפיי · <a href="#" id="logout" style="color:inherit">התנתקות</a>' : "";
+  const lo = $("logout"); if (lo) lo.onclick = e => { e.preventDefault(); ["at","rt","sv"].forEach(k => store.del(k)); location.replace(REDIRECT); };
+}
 
-// ---------- אפקט ברק לפי תנועה ----------
-const sheen = $("sheen");
-const tilt = a => sheen.style.setProperty("--a", a + "deg");
-addEventListener("pointermove", e => tilt((e.clientX / innerWidth) * 360));
-addEventListener("deviceorientation", e => { if (e.gamma != null) tilt(e.gamma * 4); });
-
-// ---------- התחלה ----------
+// ---------- start ----------
+function setupVisitor(note){
+  connected = false; $("connect").hidden = false; $("connect").onclick = e => { e.stopPropagation(); login(); };
+  $("title").textContent = ""; $("artist").textContent = ""; $("sub").textContent = note || "";
+  renderPlaying(); renderAcct();
+}
 (async function init(){
+  renderPlaying();
   const code = new URLSearchParams(location.search).get("code");
   const mode = store.get("mode"); store.del("mode");
-  if (CLIENT_ID && code){
-    const body = {grant_type:"authorization_code",code,redirect_uri:REDIRECT,code_verifier:store.get("pkce")};
+  if (code){
+    const body = {grant_type:"authorization_code", code, redirect_uri:REDIRECT, code_verifier:store.get("pkce")};
     try {
-      if (mode === "widget"){ const d = await token(body, false); showWidget(d.refresh_token); }
+      if (mode === "widget"){ const d = await token(body, false); history.replaceState({}, "", REDIRECT); setTimeout(() => readyWidget(d.refresh_token), 50); }
       else await token(body);
-    } catch(e){ note.textContent = "ההתחברות נכשלה. נסי שוב."; }
+    } catch(e){ toast("ההתחברות נכשלה, נסי שוב"); }
     history.replaceState({}, "", REDIRECT);
   }
-  const pl = document.querySelector(".platter");
-  pl.setAttribute("role","button"); pl.setAttribute("aria-label","ניגון או עצירה");
-  pl.onclick = () => control("toggle");
-  $("wbtn").hidden = false;
-  $("wbtn").onclick = () => { store.set("mode","widget"); login(); };
-  if (CLIENT_ID && store.get("at")){
-    connected = true; renderButtons(); poll(); setInterval(poll, 4000);
-  } else {
-    note.textContent = "חפשו שיר כדי לראות אותו על הפטיפון, או התחברו לספוטיפיי.";
-    $("search").hidden = false;
-    renderButtons(); setTimeout(() => setPlaying(true), 700);
-  }
+  if (store.get("at") && store.get("sv") === SCOPE_V){
+    connected = true; $("connect").hidden = true; renderAcct();
+    poll(); setInterval(poll, 4000);
+  } else if (store.get("at")){
+    ["at","rt"].forEach(k => store.del(k));
+    setupVisitor("עדכנו את הפטיפון 🎉 צריך להתחבר שוב פעם אחת");
+  } else setupVisitor();
 })();
 </script>
 </body>
