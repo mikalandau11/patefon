@@ -103,8 +103,8 @@ button:focus{outline:none}
 .sbtn svg{width:22px;height:22px;fill:#fff}
 .stack{width:min(90vw,380px);display:flex;flex-direction:column;align-items:center;margin-top:6px}
 .item{position:relative;width:100%;height:var(--slot);cursor:pointer;transition:transform .3s cubic-bezier(.3,1.4,.5,1),filter .3s}
-.item.dim{filter:brightness(.78) saturate(.9)}
-.item.pop{transform:translateY(-10px) scale(1.05);filter:none}
+.item.dim{filter:brightness(.82) saturate(.92)}
+.item.pop{transform:translateY(-6px) scale(1.02);filter:brightness(1.06)}
 .item.pop .cover{box-shadow:0 30px 50px #000e}
 .item.pop .spine{box-shadow:inset 0 1px 0 #ffffff90,0 6px 18px #0008}
 .item .spine{position:relative;z-index:2;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:7px 12px 6px;background:var(--sc,#3a3a40);color:var(--st,#fff);white-space:nowrap;overflow:hidden;font-size:.95rem;box-shadow:inset 0 1px 0 #ffffff70,inset 0 -1px 0 #0003;transition:background .4s}
@@ -770,8 +770,8 @@ function layoutStack(){
   items.forEach((it, i) => {
     const y = Math.max(0, Math.min(1, it.getBoundingClientRect().top / vh)), pop = it === best;
     it.classList.toggle("pop", pop); it.classList.toggle("dim", !pop);
-    it.style.zIndex = pop ? 500 : 10 + i;
-    it.querySelector(".cover").style.transform = `rotateX(${-(TOP_A + (BOT_A - TOP_A) * y - (pop ? 8 : 0))}deg)`;
+    it.style.zIndex = 10 + i;
+    it.querySelector(".cover").style.transform = `rotateX(${-(TOP_A + (BOT_A - TOP_A) * y - (pop ? 3 : 0))}deg)`;
   });
 }
 addEventListener("scroll", () => { if (view === "library") requestAnimationFrame(layoutStack); }, {passive:true});
