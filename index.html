@@ -67,8 +67,13 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 .corner{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:55;display:flex;gap:10px;direction:ltr;transition:opacity .25s,transform .3s}
 .corner.l{left:18px}.corner.r{right:18px}
 .corner.hide{opacity:0;transform:translateY(20px);pointer-events:none}
-.gbtn{width:62px;height:50px;border-radius:999px;display:grid;place-items:center;transition:transform .2s}
-.gbtn:active{transform:scale(1.1)}
+.gbtn{width:62px;height:50px;border-radius:999px;display:grid;place-items:center;transition:transform .2s;isolation:isolate;transform:translateZ(0);outline:none}
+.gbtn svg,.pp svg{grid-area:1/1}
+.ico-pause{display:none}
+.is-playing .ico-play{display:none}
+.is-playing .ico-pause{display:block}
+button:focus{outline:none}
+.gbtn:active{transform:translateZ(0) scale(1.1)}
 .gbtn svg{width:22px;height:22px;fill:#fff}
 
 /* bottom glass bar */
@@ -79,7 +84,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 .bar .tab.on{opacity:1;background:#ffffff26}
 .bar .tab svg{width:27px;height:27px;fill:#fff}
 .bar .now{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 5px;border-radius:999px;min-width:120px;cursor:pointer}
-.bar .mini{width:46px;height:46px;border-radius:50%;position:relative;flex:none;background:radial-gradient(circle,var(--v1,#141416) 0 30%,#0b0b0c 31% 60%,var(--v1,#141416) 61% 85%,#050505);box-shadow:0 2px 8px #0006;animation:spin 3.6s linear infinite;animation-play-state:paused}
+.bar .mini{width:46px;height:46px;border-radius:50%;position:relative;flex:none;background:radial-gradient(circle,var(--v1,#141416) 0 30%,var(--v2,#0b0b0c) 31%,var(--v1,#141416) 60%,var(--v2,#0b0b0c) 61%,var(--v1,#141416) 88%,#050505 100%);box-shadow:0 2px 8px #0006;animation:spin 3.6s linear infinite;animation-play-state:paused}
 .is-playing .bar .mini{animation-play-state:running}
 .bar .mini::after{content:"";position:absolute;inset:30%;border-radius:50%;background:var(--lab,radial-gradient(circle at 40% 35%,#e8573a,#b8321a)) center/cover}
 .bar .pp{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none}
@@ -95,7 +100,6 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 .wbtn{left:0}.sbtn{right:0}
 .wbtn svg{width:24px;height:24px;fill:#fff}
 .sbtn svg{width:22px;height:22px;fill:#fff}
-.motion-btn{border-radius:999px;padding:8px 14px;font-size:.8rem;font-weight:600}
 .stack{width:min(90vw,380px);display:flex;flex-direction:column;align-items:center;margin-top:6px}
 .item{position:relative;width:100%;height:var(--slot);cursor:pointer}
 .item .spine{position:relative;z-index:2;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:7px 12px 6px;background:var(--sc,#3a3a40);color:var(--st,#fff);white-space:nowrap;overflow:hidden;font-size:.95rem;box-shadow:inset 0 1px 0 #ffffff70,inset 0 -1px 0 #0003;transition:background .4s}
@@ -103,6 +107,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 .item .spine b{font-weight:800;overflow:hidden;text-overflow:ellipsis;max-width:70%}
 .item .spine span{font-weight:300;opacity:.85;overflow:hidden;text-overflow:ellipsis}
 .item .persp{position:relative;z-index:1;perspective:650px;perspective-origin:50% 0}
+.stack .item:last-child{margin-bottom:120px}
 .item .cover{width:100%;aspect-ratio:1;transform-origin:50% 0;background:#222 var(--cv) center/cover;box-shadow:0 22px 34px #000c;position:relative;will-change:transform}
 .item .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(175deg,#ffffff38,#fff0 30%,#0000 70%,#0005)}
 .msg{color:#ffffffb0;text-align:center;margin:40px 20px;line-height:1.6;display:flex;flex-direction:column;align-items:center;gap:14px}
@@ -143,8 +148,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
 /* ---------- sheet (widget + home screen) ---------- */
 .scrim{position:fixed;inset:0;z-index:80;background:#0006;opacity:0;pointer-events:none;transition:opacity .3s}
 .scrim.on{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:50%;bottom:0;z-index:81;width:min(100vw,480px);max-height:88vh;overflow:auto;border-radius:28px 28px 0 0;padding:14px 22px calc(26px + env(safe-area-inset-bottom,0px));transform:translate(-50%,105%);transition:transform .45s cubic-bezier(.3,1.2,.5,1);line-height:1.6}
-.sheet.on{transform:translate(-50%,0)}
+.sheet{position:fixed;left:50%;bottom:0;z-index:81;width:min(100vw,480px);max-height:88vh;overflow:auto;border-radius:28px 28px 0 0;padding:14px 22px calc(26px + env(safe-area-inset-bottom,0px));transform:translate(-50%,130%);visibility:hidden;transition:transform .45s cubic-bezier(.3,1.2,.5,1),visibility 0s .45s;line-height:1.6}
+.sheet.on{transform:translate(-50%,0);visibility:visible;transition:transform .45s cubic-bezier(.3,1.2,.5,1),visibility 0s}
 .sheet .grab{width:40px;height:5px;border-radius:3px;background:#ffffff70;margin:0 auto 12px}
 .sheet h3{margin:4px 0 4px;font-size:1.2rem}
 .sheet ol{margin:4px 0 14px;padding-inline-start:20px}
@@ -183,7 +188,6 @@ button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;pad
       <div class="seg tint" id="libSeg"><span class="rest"></span><button data-k="albums" class="on">Albums</button><button data-k="playlists">Playlists</button></div>
       <button class="sbtn tint" id="sbtn" aria-label="חיפוש"><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 6 12l4.3 4.3-1.5 1.5-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg></button>
     </div>
-    <button class="motion-btn tint" id="motion" hidden>הטיה עם הטלפון</button>
   </div>
   <div class="stack" id="stack"></div>
 </section>
@@ -354,10 +358,6 @@ function background(cover) {
 async function build() {
   const w = new ListWidget();
   w.url = SITE;
-  const g = new LinearGradient();
-  g.colors = [new Color("#2e2e32"), new Color("#000000")];
-  g.locations = [0, 1];
-  w.backgroundGradient = g;
 
   let t = null, cover = null, msg = null;
   try {
@@ -368,6 +368,12 @@ async function build() {
     msg = "צריך להכין קוד חדש באתר";
   }
   if (cover) w.backgroundImage = background(cover);
+  else {   // אין שיר: רקע שחור מבריק כמו באתר
+    const g = new LinearGradient();
+    g.colors = [new Color("#3a3a3e"), new Color("#111113"), new Color("#000000")];
+    g.locations = [0, 0.5, 1];
+    w.backgroundGradient = g;
+  }
   // מבקשים עדכון בסוף השיר (עד 5 דקות); האייפון מחליט מתי בפועל
   const wait = t ? Math.min(Math.max(t.left + 5000, 30000), 5 * 60 * 1000) : 5 * 60 * 1000;
   w.refreshAfterDate = new Date(Date.now() + wait);
@@ -526,7 +532,6 @@ function setArm(deg, cls){ armEl.classList.remove("track","drag"); if (cls) armE
 const armForPos = () => A0 + (A1 - A0) * (len ? Math.min(1, pos/len) : 0);
 function renderPlaying(){
   stage.classList.toggle("playing", playing); document.body.classList.toggle("is-playing", playing);
-  $("bPlay").innerHTML = ICONS[playing ? "pause" : "play"]; $("miniPP").innerHTML = ICONS[playing ? "pause" : "play"];
   if (!armDrag) setArm(playing ? armForPos() : REST);
 }
 function showTrack(t){
@@ -541,9 +546,9 @@ function showTrack(t){
     root.setProperty("--art", 'url("' + t.img + '")'); $("bg").classList.add("has");
     document.body.style.setProperty("--lab", 'url("' + t.img + '")');
     albumColor(t.img).then(c => { if (cur !== t) return;
-      document.body.style.setProperty("--v1", hslCss(c) || "#141416"); stage.style.setProperty("--v2", hslCss(c, -.07) || "#0b0b0c"); });
+      document.body.style.setProperty("--v1", hslCss(c) || "#141416"); document.body.style.setProperty("--v2", hslCss(c, -.07) || "#0b0b0c"); });
   } else {
-    $("bg").classList.remove("has"); document.body.style.removeProperty("--lab"); document.body.style.removeProperty("--v1"); stage.style.removeProperty("--v2");
+    $("bg").classList.remove("has"); document.body.style.removeProperty("--lab"); document.body.style.removeProperty("--v1"); document.body.style.removeProperty("--v2");
   }
 }
 // local clock between polls
@@ -563,14 +568,18 @@ async function poll(){
       if (d && d.item && d.item.type === "track"){
         idle = false;
         const it = d.item;
-        showTrack({id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000});
+        const t = {id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000};
+        showTrack(t); store.set("last", JSON.stringify(t));
         len = it.duration_ms/1000; pos = (d.progress_ms || 0)/1000;
         playing = !!d.is_playing; renderPlaying(); return;
       }
     }
     if (r.status === 401){ connected = false; setupVisitor("צריך להתחבר שוב לספוטיפיי"); return; }
-    playing = false; renderPlaying();
-    if ((!cur || !idle) && Date.now() - lastRecentTry > 60000){
+    playing = false;
+    if (!idle){ idle = true; pos = 0; if (cur){ $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; } }
+    renderPlaying();
+    if (!cur){ try { const last = JSON.parse(store.get("last") || "null"); if (last){ showTrack(last); len = last.dur; $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; return; } } catch(e){} }
+    if (!cur && Date.now() - lastRecentTry > 60000){
       lastRecentTry = Date.now();
       const rp = await getJSON("/me/player/recently-played?limit=1").catch(() => null);
       const it = rp && rp.items && rp.items[0] && rp.items[0].track;
@@ -633,6 +642,8 @@ $("miniPP").onclick = e => { e.stopPropagation(); toggle(); keepBar(); };
 $("bNext").onclick = e => { e.stopPropagation(); changeTrack(1); };
 $("bPrev").onclick = e => { e.stopPropagation(); changeTrack(-1); };
 $("bPrev").innerHTML = ICONS.prev; $("bNext").innerHTML = ICONS.next;
+const PP = ICONS.play.replace("<svg", '<svg class="ico-play"') + ICONS.pause.replace("<svg", '<svg class="ico-pause"');
+$("bPlay").innerHTML = PP; $("miniPP").innerHTML = PP;
 
 // drag the record with the finger
 const platter = $("platter");
@@ -702,7 +713,7 @@ function segInit(el, onPick){
   btns.forEach(b => b.onclick = e => { e.stopPropagation(); btns.forEach(o => o.classList.toggle("on", o === b)); place(); onPick(b.dataset.k); });
   el._place = place; requestAnimationFrame(place);
 }
-let kind = "albums", phone = 0, lib = {albums: null, playlists: null};
+let kind = "albums", lib = {albums: null, playlists: null};
 async function loadLibrary(){
   if (!connected){ $("stack").innerHTML = '<div class="msg">כדי לראות את האלבומים והפלייליסטים שלך צריך להתחבר לספוטיפיי<button class="connect" onclick="login()">התחברות לספוטיפיי</button><span>אפשר גם לחפש שירים בזכוכית המגדלת 🔍</span></div>'; return; }
   if (lib[kind]){ renderStack(); return; }
@@ -733,25 +744,21 @@ function renderStack(){
   });
   layoutStack();
 }
+const TOP_A = 38, BOT_A = 56, PERSP = 650;
+function projH(W, a){ const r = a * Math.PI / 180; return W * Math.cos(r) * PERSP / (PERSP + W * Math.sin(r)); }
 function layoutStack(){
   const st = $("stack"); if (!st.offsetWidth) return;
-  const vh = innerHeight; st.style.setProperty("--slot", Math.round(st.offsetWidth * 0.66) + "px");
+  const W = st.offsetWidth, vh = innerHeight, first = st.querySelector(".spine");
+  const spineH = first ? first.offsetHeight : 34;
+  st.style.setProperty("--slot", Math.round(spineH + projH(W, BOT_A) - 2) + "px");
   st.querySelectorAll(".item").forEach(it => {
-    const y = it.getBoundingClientRect().top / vh;
-    const a = Math.max(8, Math.min(80, 18 + y * 46 + phone));
-    it.querySelector(".cover").style.transform = `rotateX(${-a}deg)`;
+    const y = Math.max(0, Math.min(1, it.getBoundingClientRect().top / vh));
+    it.querySelector(".cover").style.transform = `rotateX(${-(TOP_A + (BOT_A - TOP_A) * y)}deg)`;
   });
 }
 addEventListener("scroll", () => { if (view === "library") requestAnimationFrame(layoutStack); }, {passive:true});
 addEventListener("resize", () => { layoutStack(); $("libSeg")._place(); });
 segInit($("libSeg"), k => { kind = k; loadLibrary(); });
-function onOrient(e){ if (e.beta != null && view === "library"){ phone = Math.max(-25, Math.min(25, (50 - e.beta) * 0.8)); layoutStack(); } }
-if (window.DeviceOrientationEvent){
-  if (typeof DeviceOrientationEvent.requestPermission === "function"){
-    if (store.get("tilt") !== "no"){ $("motion").hidden = false; }
-    $("motion").onclick = () => DeviceOrientationEvent.requestPermission().then(r => { if (r === "granted"){ addEventListener("deviceorientation", onOrient); $("motion").hidden = true; } else { store.set("tilt","no"); $("motion").hidden = true; } }).catch(() => { $("motion").hidden = true; });
-  } else addEventListener("deviceorientation", onOrient);
-}
 
 // ---------- album / playlist page ----------
 let openItem = null;
