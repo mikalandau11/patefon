@@ -229,9 +229,9 @@ button:focus{outline:none}
 
 <!-- bottom glass bar -->
 <div class="bar tint" id="bar">
-  <button class="tab on" data-k="player" aria-label="פטיפון"><svg viewBox="0 0 24 24"><path d="M12 3C7 3 3.2 6.9 3.2 11.8V17a3 3 0 0 0 3 3h1.3a1.2 1.2 0 0 0 1.2-1.2v-5.6A1.2 1.2 0 0 0 7.5 12H5.4v-.2C5.4 8.1 8.3 5.2 12 5.2s6.6 2.9 6.6 6.6v.2h-2.1a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h1.3a3 3 0 0 0 3-3v-5.2C20.8 6.9 17 3 12 3z"/></svg></button>
-  <div class="now frost" id="now"><span class="mini"></span><span class="ttl" id="miniTitle">לא מתנגן</span><button class="pp" id="miniPP" aria-label="ניגון או עצירה"></button></div>
   <button class="tab" data-k="library" aria-label="ספרייה"><svg viewBox="0 0 24 24"><path d="M12 3.2 2.5 11a1 1 0 0 0 1.3 1.6l.9-.7V19a2 2 0 0 0 2 2h3.6v-5.4h3.4V21h3.6a2 2 0 0 0 2-2v-7.1l.9.7a1 1 0 0 0 1.3-1.6z"/></svg></button>
+  <div class="now frost" id="now"><span class="mini"></span><span class="ttl" id="miniTitle">לא מתנגן</span><button class="pp" id="miniPP" aria-label="ניגון או עצירה"></button></div>
+  <button class="tab on" data-k="player" aria-label="פטיפון"><svg viewBox="0 0 24 24"><path d="M12 3C7 3 3.2 6.9 3.2 11.8V17a3 3 0 0 0 3 3h1.3a1.2 1.2 0 0 0 1.2-1.2v-5.6A1.2 1.2 0 0 0 7.5 12H5.4v-.2C5.4 8.1 8.3 5.2 12 5.2s6.6 2.9 6.6 6.6v.2h-2.1a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h1.3a3 3 0 0 0 3-3v-5.2C20.8 6.9 17 3 12 3z"/></svg></button>
 </div>
 
 <!-- widget + home screen sheet -->
@@ -701,7 +701,9 @@ function syncChrome(){
   ["cornerL","cornerR"].forEach(id => $(id).classList.toggle("hide", show || view !== "player"));
 }
 function keepBar(){ if (view !== "player") return; $("bar").classList.add("tap"); syncChrome(); clearTimeout(hideT); hideT = setTimeout(() => { $("bar").classList.remove("tap"); syncChrome(); }, 4000); }
-document.addEventListener("click", e => { if (view === "player" && !e.target.closest("button, input, .bar, .sheet")) keepBar(); });
+function hideBar(){ clearTimeout(hideT); $("bar").classList.remove("tap"); syncChrome(); }
+// tap the screen: show the bar; tap again: hide it (it also hides by itself after a few seconds)
+document.addEventListener("click", e => { if (view === "player" && !e.target.closest("button, input, .bar, .sheet")){ $("bar").classList.contains("tap") ? hideBar() : keepBar(); } });
 $("bar").querySelectorAll(".tab").forEach(t => t.onclick = e => { e.stopPropagation(); go(t.dataset.k); });
 $("now").onclick = e => { if (e.target.closest(".pp")) return; e.stopPropagation(); go("player"); };
 let prevView = "library";
