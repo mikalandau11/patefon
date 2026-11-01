@@ -470,7 +470,7 @@ Script.complete();
 const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
 const REDIRECT = /(^|\.)mikalandau11\.github\.io$/i.test(location.hostname) ? "https://mikalandau11.github.io/patefon/"
   : location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
-const VERSION = "22";
+const VERSION = "23";
 const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative user-library-read";
 const SCOPE_V = "3";
 // ===================
@@ -1091,9 +1091,25 @@ async function openArtistSpotify(a, autoplay){
   loadingList(true); go("list");
   let tracks = [], albums = [];
   try { tracks = (await getJSON("/artists/" + a.id + "/top-tracks?market=from_token")).tracks || []; } catch(e){}
-  if (!tracks.length){ try { const d = await getJSON("/search?type=track&limit=20&q=" + encodeURIComponent('artist:"' + a.name + '"')); tracks = ((d.tracks && d.tracks.items) || []).filter(t => t && t.artists.some(x => x.id === a.id)); } catch(e){} }
-  try { albums = (await getJSON("/artists/" + a.id + "/albums?include_groups=album,single&limit=50")).items || []; } catch(e){}
-  if (!albums.length){ try { const d = await getJSON("/search?type=album&limit=20&q=" + encodeURIComponent('artist:"' + a.name + '"')); albums = ((d.albums && d.albums.items) || []).filter(x => x && x.artists.some(z => z.id === a.id)); } catch(e){} }
+  const search10 = async (type, q, pages) => {
+    const out = [];
+    for (let i = 0; i < pages; i++){
+      try { const d = await getJSON("/search?type=" + type + "&limit=10&offset=" + (i*10) + "&q=" + encodeURIComponent(q)); out.push(...((d[type + "s"] && d[type + "s"].items) || []).filter(Boolean)); } catch(e){ break; }
+    }
+    return out;
+  };
+  const mine = x => x && (x.artists || []).some(z => z.id === a.id);
+  if (!tracks.length){
+    tracks = (await search10("track", 'artist:"' + a.name + '"', 2)).filter(mine);
+    if (!tracks.length) tracks = (await search10("track", a.name, 2)).filter(mine);
+  }
+  for (const lim of [50, 10]){ try { albums = (await getJSON("/artists/" + a.id + "/albums?include_groups=album,single&limit=" + lim)).items || []; if (albums.length) break; } catch(e){} }
+  if (!albums.length){
+    albums = (await search10("album", 'artist:"' + a.name + '"', 2)).filter(mine);
+    if (!albums.length) albums = (await search10("album", a.name, 2)).filter(mine);
+  }
+  // no duplicate songs
+  const seenT = new Set(); tracks = tracks.filter(t => { const k = t.name.toLowerCase(); if (seenT.has(k)) return false; seenT.add(k); return true; });
   if (!(openItem && openItem.uri === a.uri)) return;
   if (!a.img && tracks[0]) $("phCover").style.setProperty("--cv", 'url("' + pick(tracks[0].album.images) + '")');
   const uris = tracks.map(t => t.uri), ul = $("tracks"); ul.innerHTML = "";
