@@ -62,6 +62,15 @@ html.lock,html.lock body{overflow:hidden;height:100%;overscroll-behavior:none}
 .info p{font-family:"Fredoka",system-ui,sans-serif;font-weight:400;font-size:.95rem;margin:0;color:var(--mute);text-shadow:0 1px 8px #0008}
 .info small{display:block;margin-top:4px;font-family:"Fredoka",system-ui,sans-serif;font-size:.78rem;color:#ffffff99}
 .connect{margin-top:4px;border-radius:999px;padding:13px 26px;font-weight:700;background:var(--red);border:1px solid #ffffff55;color:#fff;box-shadow:0 0 0 0 #d9442acc;animation:pulse 1.6s ease-in-out infinite}
+.guest .bar .tab[data-k=library]{display:none}
+.wake{display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:22px;padding:12px 20px;font-weight:700;font-size:.95rem;max-width:min(90vw,400px);animation:wakeGlow 2s ease-in-out infinite}
+.wake[hidden]{display:none}
+.wake small{font-weight:400;font-size:.74rem;color:#333}
+@keyframes wakeGlow{0%,100%{box-shadow:inset 0 1px 1px #fff,0 10px 28px #0007,0 0 0 0 #ffffff80}50%{box-shadow:inset 0 1px 1px #fff,0 10px 28px #0007,0 0 0 8px #ffffff00}}
+.vsearch{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:11px 22px;font-weight:600}
+.vsearch[hidden]{display:none}
+.vsearch svg{width:18px;height:18px;fill:#fff}
+.toast.link{cursor:pointer;text-decoration:underline}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d9442acc;opacity:1}50%{box-shadow:0 0 0 12px #d9442a00,0 0 22px #d9442a99;opacity:.85}}
 
 /* corner buttons (player only, hidden while the bar shows) */
@@ -182,7 +191,9 @@ button:focus{outline:none}
     <div class="timebub frost" id="timebub"></div>
   </div>
   <div class="info"><h1 id="title"></h1><p id="artist"></p><small id="sub"></small></div>
+  <button class="wake frost" id="wake" hidden>▶ לחצו כאן כדי להפעיל את השיר דרך ספוטיפיי<small>אחרי שהשיר מתחיל, לוחצים על החץ הקטן בפינה למעלה כדי לחזור לכאן</small></button>
   <button class="connect" id="connect" hidden>התחברות לספוטיפיי</button>
+  <button class="vsearch tint" id="vsearch" hidden><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 6 12l4.3 4.3-1.5 1.5-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>חיפוש שיר</button>
 </section>
 
 <!-- ===== LIBRARY ===== -->
@@ -447,7 +458,7 @@ const store = {
 };
 const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
 let toastT;
-function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 3200); }
+function toast(msg, onTap){ const t = $("toast"); t.textContent = msg; t.classList.toggle("link", !!onTap); t.onclick = onTap || null; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), onTap ? 6000 : 3200); }
 const pick = (imgs, i = 0) => (imgs && (imgs[i] || imgs[0]) || {}).url || "";
 
 // ---------- album colour (two stages: big soft area wins, else vivid non-skin colour) ----------
@@ -514,9 +525,13 @@ async function cmd(method, path, body){
   try {
     let r = await api(path, {method, body});
     if (r.status === 404){
-      const d = await getJSON("/me/player/devices").catch(() => null);
-      const dev = d && (d.devices || []).find(x => !x.is_restricted);
-      if (!dev){ toast("פתחי את ספוטיפיי באחד המכשירים ונסי שוב"); return false; }
+      let dev = null;
+      for (let i = 0; i < 3 && !dev; i++){
+        if (i) await new Promise(r => setTimeout(r, 900));
+        const d = await getJSON("/me/player/devices").catch(() => null);
+        dev = d && (d.devices || []).find(x => !x.is_restricted);
+      }
+      if (!dev){ setWake(true); if (!cur) toast("פתחו את ספוטיפיי באחד המכשירים ונסו שוב"); return false; }
       r = await api(path + (path.includes("?") ? "&" : "?") + "device_id=" + dev.id, {method, body});
     }
     if (r.status === 403){ toast("את זה ספוטיפיי מאפשרת רק עם Premium"); return false; }
@@ -576,24 +591,31 @@ async function poll(){
         const t = {id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000};
         showTrack(t); store.set("last", JSON.stringify(t));
         len = it.duration_ms/1000; pos = (d.progress_ms || 0)/1000;
-        playing = !!d.is_playing; renderPlaying(); return;
+        playing = !!d.is_playing; renderPlaying(); setWake(false); return;
       }
     }
     if (r.status === 401){ connected = false; setupVisitor("צריך להתחבר שוב לספוטיפיי"); return; }
-    playing = false;
-    if (!idle){ idle = true; pos = 0; if (cur){ $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; } }
+    playing = false; setWake(true);
+    if (!idle){ idle = true; if (cur && $("wake").hidden){ $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; } }
     renderPlaying();
-    if (!cur){ try { const last = JSON.parse(store.get("last") || "null"); if (last){ showTrack(last); len = last.dur; $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; return; } } catch(e){} }
+    if (!cur){ try { const last = JSON.parse(store.get("last") || "null"); if (last){ showTrack(last); len = last.dur; setWake(true); return; } } catch(e){} }
     if (!cur && Date.now() - lastRecentTry > 60000){
       lastRecentTry = Date.now();
       const rp = await getJSON("/me/player/recently-played?limit=1").catch(() => null);
       const it = rp && rp.items && rp.items[0] && rp.items[0].track;
       idle = true;
-      if (it) { cur = null; showTrack({id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000}); len = it.duration_ms/1000; pos = 0; }
+      if (it) { cur = null; showTrack({id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000}); len = it.duration_ms/1000; pos = 0; setWake(true); }
       else if (!cur) showTrack(null);
     }
   } catch(e){}
 }
+
+function setWake(on){
+  const show = !!(on && connected && cur && cur.uri);
+  $("wake").hidden = !show;
+  if (show) $("sub").textContent = "";
+}
+$("wake").onclick = e => { e.stopPropagation(); if (cur && cur.uri) location.href = cur.uri; };
 
 // ---------- controls ----------
 async function toggle(){
@@ -605,7 +627,7 @@ async function toggle(){
   if (playing){ playing = false; renderPlaying(); if (!await cmd("PUT", "/me/player/pause")){ playing = true; renderPlaying(); } }
   else {
     playing = true; renderPlaying();
-    const ok = idle && cur ? await cmd("PUT", "/me/player/play", {uris: [cur.uri]}) : await cmd("PUT", "/me/player/play");
+    const ok = idle && cur ? await cmd("PUT", "/me/player/play", {uris: [cur.uri], position_ms: Math.round(pos*1000)}) : await cmd("PUT", "/me/player/play");
     if (!ok){ playing = false; renderPlaying(); } else { idle = false; $("sub").textContent = ""; }
   }
   setTimeout(poll, 700);
@@ -708,6 +730,7 @@ $("bar").querySelectorAll(".tab").forEach(t => t.onclick = e => { e.stopPropagat
 $("now").onclick = e => { if (e.target.closest(".pp")) return; e.stopPropagation(); go("player"); };
 let prevView = "library";
 function go(v){
+  if (!connected && v === "library") v = "player";   // the library is only for people who are connected
   if (v !== view && view !== "search") prevView = view;
   view = v;
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
@@ -815,14 +838,15 @@ async function playContext(ctx, trackUri, shuffle){
   if (ctx && trackUri) body.offset = {uri: trackUri};
   if (await cmd("PUT", "/me/player/play", body)){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
 }
-$("back").onclick = e => { e.stopPropagation(); go(prevView === "search" ? "search" : "library"); };
+$("back").onclick = e => { e.stopPropagation(); go(prevView === "search" ? "search" : (connected ? "library" : "player")); };
 $("playAll").onclick = () => playContext(openItem.uri, null, false);
 $("shuffle").onclick = () => playContext(openItem.uri, null, true);
 
 // ---------- search ----------
 let searchFrom = "library", sT;
+$("vsearch").onclick = e => { e.stopPropagation(); $("sbtn").click(); };
 $("sbtn").onclick = e => { e.stopPropagation(); searchFrom = view; go("search"); $("sq").value = ""; renderEmpty(); setTimeout(() => $("sq").focus(), 60); };
-$("scancel").onclick = e => { e.stopPropagation(); go(searchFrom === "search" ? "library" : searchFrom); };
+$("scancel").onclick = e => { e.stopPropagation(); go(searchFrom === "search" || !connected ? (connected ? "library" : "player") : searchFrom); };
 function renderEmpty(){ $("sres").innerHTML = '<div class="s-empty">' + (connected ? "כתבי שם של שיר, זמר, אלבום או פלייליסט" : "כתבו שם של שיר – ותשמעו 30 שניות ממנו על הפטיפון.<br>כדי לחפש בכל ספוטיפיי צריך להתחבר.") + '</div>'; }
 $("sq").oninput = () => { clearTimeout(sT); const q = $("sq").value.trim(); if (!q){ renderEmpty(); return; } sT = setTimeout(() => runSearch(q), 380); };
 function group(title, rows){ if (!rows.length) return; const g = document.createElement("div"); g.className = "s-group";
@@ -888,7 +912,7 @@ function renderAcct(){
 
 // ---------- start ----------
 function setupVisitor(note){
-  connected = false; $("connect").hidden = false; $("connect").onclick = e => { e.stopPropagation(); login(); };
+  connected = false; $("connect").hidden = false; $("vsearch").hidden = false; document.body.classList.add("guest"); $("connect").onclick = e => { e.stopPropagation(); login(); };
   $("title").textContent = ""; $("artist").textContent = ""; $("sub").textContent = note || "";
   renderPlaying(); renderAcct();
 }
