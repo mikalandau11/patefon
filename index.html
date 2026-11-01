@@ -171,6 +171,10 @@ button:focus{outline:none}
 .t span.tag,.tag{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-inline-end:6px;background:#ffffff26;color:#fff;vertical-align:1px}
 .tag.song{background:#ffffff30}.tag.album{background:#ffd16655;color:#fff}.tag.artist{background:#7cc8ff55}
 .avatar{display:grid;place-items:center;font-weight:800;font-size:1.1rem;color:#fff;background:linear-gradient(135deg,#7b5cff,#ff6fa8)!important}
+.hist li .hico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#ffffff1a;flex:none}
+.hist li .hico svg{width:20px;height:20px;fill:#ffffffc0}
+.hdel{width:36px;height:36px;border-radius:50%;flex:none;color:#ffffffb0;font-size:1rem}
+.hdel:active{background:#ffffff26}
 .s-empty{color:#ffffffa0;text-align:center;margin-top:30px;line-height:1.6}
 
 /* ---------- sheet (widget + home screen) ---------- */
@@ -632,7 +636,8 @@ function setWake(on){
   $("wake").hidden = !show;
   if (show) $("sub").textContent = "";
 }
-$("wake").onclick = e => { e.stopPropagation(); if (cur && cur.uri) location.href = cur.uri; };
+// open the Spotify app itself (not the song link): the app remembers the song, the playlist and the exact second you stopped at
+$("wake").onclick = e => { e.stopPropagation(); location.href = "spotify:"; };
 
 // ---------- controls ----------
 async function toggle(){
@@ -745,16 +750,20 @@ function hideBar(){ clearTimeout(hideT); $("bar").classList.remove("tap"); syncC
 document.addEventListener("click", e => { if (view === "player" && !e.target.closest("button, input, .bar, .sheet")){ $("bar").classList.contains("tap") ? hideBar() : keepBar(); } });
 $("bar").querySelectorAll(".tab").forEach(t => t.onclick = e => { e.stopPropagation(); go(t.dataset.k); });
 $("now").onclick = e => { if (e.target.closest(".pp")) return; e.stopPropagation(); go("player"); };
-let prevView = "library";
+let prevView = "library", listFrom = "library";
+let searchScroll = 0;
 function go(v){
+  if (view === "search") searchScroll = scrollY;
   if (!connected && v === "library") v = "player";   // the library is only for people who are connected
-  if (v !== view && view !== "search") prevView = view;
+  if (v !== view) prevView = view;
   view = v;
+  if (v === "list" && prevView !== "list") listFrom = prevView;
+  const keep = v === "search" ? scrollY : 0;
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $("bar").querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.k === (v === "player" ? "player" : "library")));
   $("bar").classList.remove("tap"); syncChrome();
   document.documentElement.classList.toggle("lock", v === "player");
-  scrollTo(0, 0);
+  scrollTo(0, v === "search" ? searchScroll : 0);
   if (v === "library"){ loadLibrary(); requestAnimationFrame(() => { $("libSeg")._place(); layoutStack(); }); }
 }
 
@@ -855,7 +864,7 @@ async function playContext(ctx, trackUri, shuffle){
   if (ctx && trackUri) body.offset = {uri: trackUri};
   if (await cmd("PUT", "/me/player/play", body)){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
 }
-$("back").onclick = e => { e.stopPropagation(); go(prevView === "search" ? "search" : (connected ? "library" : "player")); };
+$("back").onclick = e => { e.stopPropagation(); go(listFrom === "search" ? "search" : (connected ? "library" : "player")); };
 $("playAll").onclick = () => { if (!openItem && previewRows) playPreviews(previewRows, 0); else playContext(openItem.uri, null, false); };
 $("shuffle").onclick = () => { if (!openItem && previewRows){ const sh = [...previewRows].sort(() => Math.random() - .5); playPreviews(sh, 0); } else playContext(openItem.uri, null, true); };
 
@@ -864,8 +873,30 @@ let searchFrom = "library", sT;
 $("vsearch").onclick = e => { e.stopPropagation(); $("sbtn").click(); };
 $("sbtn").onclick = e => { e.stopPropagation(); searchFrom = view; go("search"); $("sq").value = ""; renderEmpty(); setTimeout(() => $("sq").focus(), 60); };
 $("scancel").onclick = e => { e.stopPropagation(); go(searchFrom === "search" || !connected ? (connected ? "library" : "player") : searchFrom); };
-function renderEmpty(){ $("sres").innerHTML = '<div class="s-empty">' + (connected ? "כתבי שם של שיר, זמר, אלבום או פלייליסט" : "כתבו שם של שיר – ותשמעו 30 שניות ממנו על הפטיפון.<br>כדי לחפש בכל ספוטיפיי צריך להתחבר.") + '</div>'; }
-$("sq").oninput = () => { clearTimeout(sT); const q = $("sq").value.trim(); if (!q){ renderEmpty(); return; } sT = setTimeout(() => runSearch(q), 380); };
+const getHist = () => { try { return JSON.parse(store.get("hist") || "[]"); } catch(e){ return []; } };
+const setHist = h => store.set("hist", JSON.stringify(h.slice(0, 15)));
+function addHist(q){ q = q.trim(); if (q.length < 2) return; setHist([q, ...getHist().filter(x => x.toLowerCase() !== q.toLowerCase())]); }
+function renderEmpty(){
+  const box = $("sres"), h = getHist();
+  box.innerHTML = '<div class="s-empty">' + (connected ? "כתבי שם של שיר, זמר, אלבום או פלייליסט" : "כתבו שם של שיר או זמר – ותשמעו 30 שניות על הפטיפון.<br>כדי לחפש בכל ספוטיפיי צריך להתחבר.") + '</div>';
+  if (!h.length) return;
+  const g = document.createElement("div"); g.className = "s-group hist";
+  g.innerHTML = "<h4>חיפושים אחרונים</h4>"; const ul = document.createElement("ul"); ul.className = "tint";
+  h.forEach(q => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="hico"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-8.5 6h2.1A7 7 0 1 0 12 5V3zm-1 4h2v5.4l3.6 2.1-1 1.7L11 13.6z"/><path d="M2 4l4.5 1L5 9.5z"/></svg></span><div class="t"><b></b></div><button class="hdel" aria-label="מחיקה">✕</button>';
+    li.querySelector("b").textContent = q;
+    li.onclick = () => { $("sq").value = q; runSearch(q); };
+    li.querySelector(".hdel").onclick = e => { e.stopPropagation(); setHist(getHist().filter(x => x !== q)); renderEmpty(); };
+    ul.appendChild(li);
+  });
+  g.appendChild(ul); box.prepend(g);
+}
+let histT;
+$("sq").oninput = () => { clearTimeout(sT); clearTimeout(histT); const q = $("sq").value.trim(); if (!q){ renderEmpty(); return; }
+  sT = setTimeout(() => runSearch(q), 380); histT = setTimeout(() => addHist(q), 2000); };
+$("sq").onkeydown = e => { if (e.key === "Enter"){ addHist($("sq").value); $("sq").blur(); } };
+$("sres").addEventListener("click", e => { if (e.target.closest("li, .top") && !e.target.closest(".hist")) addHist($("sq").value); }, true);
 function group(title, rows){ if (!rows.length) return; const g = document.createElement("div"); g.className = "s-group";
   g.innerHTML = "<h4>" + title + "</h4>"; const ul = document.createElement("ul"); ul.className = "tint"; rows.forEach(r => ul.appendChild(r)); g.appendChild(ul); $("sres").appendChild(g); }
 function row(img, a, b, fn){ const li = document.createElement("li"); li.innerHTML = '<span class="art"></span><div class="t"><b></b><span></span></div>';
@@ -982,7 +1013,7 @@ function itunes(term){
     const t = setTimeout(() => { done(); rej(); }, 8000);
     window[cb] = d => { done(); res((d && d.results) || []); };
     sc.onerror = () => { done(); rej(); };
-    sc.src = "https://itunes.apple.com/" + term + (term.includes("?") ? "&" : "?") + "country=IL&callback=" + cb;
+    sc.src = "https://itunes.apple.com/" + term + (term.includes("?") ? "&" : "?") + "callback=" + cb;
     document.body.appendChild(sc);
   });
 }
