@@ -175,6 +175,16 @@ button:focus{outline:none}
 .hist li .hico svg{width:20px;height:20px;fill:#ffffffc0}
 .hdel{width:36px;height:36px;border-radius:50%;flex:none;color:#ffffffb0;font-size:1rem}
 .hdel:active{background:#ffffff26}
+.albums{width:min(96vw,460px);margin-top:10px}
+.albums[hidden]{display:none}
+.albums h4{margin:0 10px 8px;font-size:1rem;font-weight:800;text-shadow:0 1px 8px #0008}
+.arow{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 10px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.arow::-webkit-scrollbar{display:none}
+.acard{flex:none;width:140px;scroll-snap-align:start;cursor:pointer;text-align:right}
+.acard .c{width:140px;height:140px;border-radius:10px;background:#333 var(--cv) center/cover;box-shadow:0 10px 22px #0009;transition:transform .2s}
+.acard:active .c{transform:scale(.96)}
+.acard b{display:block;margin-top:7px;font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acard span{font-size:.78rem;color:var(--mute)}
 .s-empty{color:#ffffffa0;text-align:center;margin-top:30px;line-height:1.6}
 
 /* ---------- sheet (widget + home screen) ---------- */
@@ -250,6 +260,7 @@ button:focus{outline:none}
   </div>
   <ul class="tracks tint" id="tracks"></ul>
   <div class="s-empty" id="listMsg"></div>
+  <div class="albums" id="artistAlbums" hidden><h4>אלבומים</h4><div class="arow" id="arow"></div></div>
 </section>
 
 <!-- corner controls -->
@@ -596,7 +607,7 @@ setInterval(() => {
 }, 500);
 
 // ---------- Spotify polling ----------
-let lastRecentTry = 0;
+let lastRecentTry = 0, wakePending = false, savedPos = +(store.get("pos") || 0) || 0;
 async function poll(){
   if (!connected || sliding) return;
   try {
@@ -610,8 +621,13 @@ async function poll(){
         idle = false;
         const it = d.item;
         const t = {id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000};
+        const fresh = cur && cur.id === t.id;
         showTrack(t); store.set("last", JSON.stringify(t));
         len = it.duration_ms/1000; pos = (d.progress_ms || 0)/1000;
+        // Spotify woke up and restarted the song from 0 -> jump back to where she stopped
+        if (wakePending && fresh && pos < 3 && savedPos > 5 && savedPos < len - 2){ wakePending = false; const to = savedPos; pos = to; cmd("PUT", "/me/player/seek?position_ms=" + Math.round(to*1000)); }
+        else if (pos > 3) wakePending = false;
+        savedPos = pos; store.set("pos", String(pos));
         playing = !!d.is_playing; renderPlaying(); setWake(false); return;
       }
     }
@@ -619,7 +635,7 @@ async function poll(){
     playing = false; setWake(true);
     if (!idle){ idle = true; if (cur && $("wake").hidden){ $("sub").textContent = "השיר האחרון ששמעת · לחצי ▶ כדי לנגן"; } }
     renderPlaying();
-    if (!cur){ try { const last = JSON.parse(store.get("last") || "null"); if (last){ showTrack(last); len = last.dur; setWake(true); return; } } catch(e){} }
+    if (!cur){ try { const last = JSON.parse(store.get("last") || "null"); if (last){ showTrack(last); len = last.dur; pos = savedPos; setWake(true); return; } } catch(e){} }
     if (!cur && Date.now() - lastRecentTry > 60000){
       lastRecentTry = Date.now();
       const rp = await getJSON("/me/player/recently-played?limit=1").catch(() => null);
@@ -637,7 +653,8 @@ function setWake(on){
   if (show) $("sub").textContent = "";
 }
 // open the Spotify app itself (not the song link): the app remembers the song, the playlist and the exact second you stopped at
-$("wake").onclick = e => { e.stopPropagation(); location.href = "spotify:"; };
+$("wake").onclick = e => { e.stopPropagation(); savedPos = pos || savedPos; store.set("pos", String(savedPos)); wakePending = true; location.href = "spotify:"; };
+document.addEventListener("visibilitychange", () => { if (!document.hidden && connected) { poll(); setTimeout(poll, 1500); } });
 
 // ---------- controls ----------
 async function toggle(){
@@ -649,7 +666,15 @@ async function toggle(){
   if (playing){ playing = false; renderPlaying(); if (!await cmd("PUT", "/me/player/pause")){ playing = true; renderPlaying(); } }
   else {
     playing = true; renderPlaying();
-    const ok = idle && cur ? await cmd("PUT", "/me/player/play", {uris: [cur.uri], position_ms: Math.round(pos*1000)}) : await cmd("PUT", "/me/player/play");
+    let ok;
+    const st = await getJSON("/me/player").catch(() => null);
+    if (st && st.item && cur && st.item.id === cur.id){
+      ok = await cmd("PUT", "/me/player/play");
+      const at = (st.progress_ms || 0)/1000, want = Math.max(pos, savedPos);
+      if (ok && at < 3 && want > 5) await cmd("PUT", "/me/player/seek?position_ms=" + Math.round(want*1000));
+    } else if (idle && cur){
+      ok = await cmd("PUT", "/me/player/play", {uris: [cur.uri], position_ms: Math.round(Math.max(pos, savedPos)*1000)});
+    } else ok = await cmd("PUT", "/me/player/play");
     if (!ok){ playing = false; renderPlaying(); } else { idle = false; $("sub").textContent = ""; }
   }
   setTimeout(poll, 700);
@@ -830,7 +855,7 @@ segInit($("libSeg"), k => { kind = k; loadLibrary(); });
 // ---------- album / playlist page ----------
 let openItem = null;
 async function openList(p){
-  openItem = p; previewRows = null;
+  openItem = p; previewRows = null; listBack = null; $("artistAlbums").hidden = true;
   $("phCover").style.setProperty("--cv", 'url("' + (p.big || p.img) + '")'); $("phName").textContent = p.name;
   $("phSub").textContent = (p.kind === "album" ? "אלבום" : "פלייליסט") + (p.sub ? " · " + p.sub : "") + (p.total ? " · " + p.total + " שירים" : "");
   const ul = $("tracks"); ul.innerHTML = ""; $("listMsg").textContent = "טוענת…";
@@ -864,7 +889,7 @@ async function playContext(ctx, trackUri, shuffle){
   if (ctx && trackUri) body.offset = {uri: trackUri};
   if (await cmd("PUT", "/me/player/play", body)){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
 }
-$("back").onclick = e => { e.stopPropagation(); go(listFrom === "search" ? "search" : (connected ? "library" : "player")); };
+$("back").onclick = e => { e.stopPropagation(); if (listBack){ const f = listBack; listBack = null; f(); return; } go(listFrom === "search" ? "search" : (connected ? "library" : "player")); };
 $("playAll").onclick = () => { if (!openItem && previewRows) playPreviews(previewRows, 0); else playContext(openItem.uri, null, false); };
 $("shuffle").onclick = () => { if (!openItem && previewRows){ const sh = [...previewRows].sort(() => Math.random() - .5); playPreviews(sh, 0); } else playContext(openItem.uri, null, true); };
 
@@ -995,15 +1020,37 @@ function showPreviewList(meta, rows, autoplay){
   if (autoplay && rows.length) playPreviews(rows, 0); else go("list");
 }
 async function openAlbumPreview(a, autoplay){
+  listBack = null; $("artistAlbums").hidden = true;
   $("tracks").innerHTML = ""; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
   const r = await itunes("lookup?entity=song&id=" + a.id).catch(() => []);
   showPreviewList({name: a.name, sub: "אלבום · " + a.artist + (a.year ? " · " + a.year : ""), img: a.img}, r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack), autoplay);
 }
+let listBack = null;   // album opened from an artist page -> "back" returns to the artist
 async function openArtistPreview(a, autoplay){
-  $("tracks").innerHTML = ""; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
-  const r = await itunes("lookup?entity=song&limit=25&id=" + a.id).catch(() => []);
+  listBack = null;
+  $("tracks").innerHTML = ""; $("artistAlbums").hidden = true; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
+  const [r, al] = await Promise.all([
+    itunes("lookup?entity=song&limit=25&id=" + a.id).catch(() => []),
+    itunes("lookup?entity=album&limit=50&id=" + a.id).catch(() => [])
+  ]);
   const rows = r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack);
   showPreviewList({name: a.name, sub: "השירים הכי מוכרים" + (a.genre ? " · " + a.genre : ""), img: a.img || (rows[0] && rows[0].img) || ""}, rows, autoplay);
+  // all their albums, newest first, in a row you scroll sideways
+  const seen = new Set();
+  const albums = al.filter(x => x.wrapperType === "collection" && x.collectionName)
+    .sort((x, y) => (y.releaseDate || "").localeCompare(x.releaseDate || ""))
+    .filter(x => { const k = x.collectionName.replace(/\s*[\(\[-].*$/, "").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+    .map(x => ({kind:"album", id:x.collectionId, name:x.collectionName, artist:x.artistName, img:big(x.artworkUrl100), year:(x.releaseDate || "").slice(0,4)}));
+  const row = $("arow"); row.innerHTML = "";
+  albums.forEach(alb => {
+    const c = document.createElement("div"); c.className = "acard";
+    c.innerHTML = '<div class="c"></div><b></b><span></span>';
+    c.querySelector(".c").style.setProperty("--cv", 'url("' + alb.img + '")');
+    c.querySelector("b").textContent = alb.name; c.querySelector("span").textContent = alb.year;
+    c.onclick = () => { openAlbumPreview(alb); listBack = () => openArtistPreview(a); };
+    row.appendChild(c);
+  });
+  $("artistAlbums").hidden = !albums.length; row.scrollLeft = 0;
 }
 let jsonpN = 0;
 function itunes(term){
