@@ -297,7 +297,7 @@ button:focus{outline:none}
     <li>לוחצים <b>"הוספה"</b> – והפטיפון מופיע כאפליקציה עם האייקון שלו.</li>
   </ol>
   <div class="row"><button class="tint" id="sclose">סגירה</button></div>
-  <p class="sub" id="acct"></p>
+  <p class="sub" id="acct"></p><p class="sub" style="opacity:.5;font-size:.7rem" id="ver"></p>
 </div>
 
 <script type="text/plain" id="wsrc">
@@ -468,7 +468,9 @@ Script.complete();
 <script>
 // ===== הגדרות =====
 const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
-const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
+const REDIRECT = /(^|\.)mikalandau11\.github\.io$/i.test(location.hostname) ? "https://mikalandau11.github.io/patefon/"
+  : location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
+const VERSION = "20";
 const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative user-library-read";
 const SCOPE_V = "3";
 // ===================
@@ -941,7 +943,7 @@ async function runSearch(q){
       ]);
       if ($("sq").value.trim() !== q) return;
       renderMix(q, songs, albums, artists);
-    } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסו שוב</div>'; }
+    } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד 😕<br><button class="pill tint" style="margin-top:12px" id="sretry">לנסות שוב</button></div>'; $("sretry").onclick = () => runSearch(q); }
     return;
   }
   try {
@@ -1057,14 +1059,25 @@ async function openArtistPreview(a, autoplay){
   $("artistAlbums").hidden = !albums.length; row.scrollLeft = 0;
 }
 let jsonpN = 0;
-function itunes(term){
+function itunesUrl(term, extra){ return "https://itunes.apple.com/" + term + (term.includes("?") ? "&" : "?") + "country=US" + (extra || ""); }
+async function itunes(term){
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+    const r = await fetch(itunesUrl(term), {signal: ctl.signal, credentials: "omit", referrerPolicy: "no-referrer"});
+    clearTimeout(t);
+    if (r.ok){ const d = await r.json(); return (d && d.results) || []; }
+  } catch(e){}
+  return itunesJsonp(term);
+}
+function itunesJsonp(term){
   return new Promise((res, rej) => {
     const cb = "__it" + (++jsonpN), sc = document.createElement("script");
     const done = () => { clearTimeout(t); delete window[cb]; sc.remove(); };
-    const t = setTimeout(() => { done(); rej(); }, 8000);
+    const t = setTimeout(() => { done(); rej(); }, 12000);
     window[cb] = d => { done(); res((d && d.results) || []); };
     sc.onerror = () => { done(); rej(); };
-    sc.src = "https://itunes.apple.com/" + term + (term.includes("?") ? "&" : "?") + "callback=" + cb;
+    sc.referrerPolicy = "no-referrer";
+    sc.src = itunesUrl(term, "&callback=" + cb);
     document.body.appendChild(sc);
   });
 }
@@ -1090,6 +1103,7 @@ function renderAcct(){
   const lo = $("logout"); if (lo) lo.onclick = e => { e.preventDefault(); ["at","rt","sv"].forEach(k => store.del(k)); location.replace(REDIRECT); };
 }
 
+$("ver").textContent = "גרסה " + VERSION;
 // ---------- start ----------
 function setupVisitor(note){
   connected = false; $("connect").hidden = false; $("vsearch").hidden = false; document.body.classList.add("guest"); $("connect").onclick = e => { e.stopPropagation(); login(); };
