@@ -169,7 +169,7 @@ button:focus{outline:none}
 .mix li:hover,.mix li:active{background:#ffffff1a}
 .mix li.round .art{border-radius:50%}
 .t span.tag,.tag{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-inline-end:6px;background:#ffffff26;color:#fff;vertical-align:1px}
-.tag.song{background:#ffffff30}.tag.album{background:#ffd16655;color:#fff}.tag.artist{background:#7cc8ff55}
+.tag.song{background:#ffffff30}.tag.playlist{background:#7dffb455}.tag.album{background:#ffd16655;color:#fff}.tag.artist{background:#7cc8ff55}
 .avatar{display:grid;place-items:center;font-weight:800;font-size:1.1rem;color:#fff;background:linear-gradient(135deg,#7b5cff,#ff6fa8)!important}
 .hist li .hico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#ffffff1a;flex:none}
 .hist li .hico svg{width:20px;height:20px;fill:#ffffffc0}
@@ -470,7 +470,7 @@ Script.complete();
 const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
 const REDIRECT = /(^|\.)mikalandau11\.github\.io$/i.test(location.hostname) ? "https://mikalandau11.github.io/patefon/"
   : location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
-const VERSION = "20";
+const VERSION = "21";
 const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative user-library-read";
 const SCOPE_V = "3";
 // ===================
@@ -936,13 +936,9 @@ async function runSearch(q){
   const box = $("sres");
   if (!connected){
     try {
-      const [songs, albums, artists] = await Promise.all([
-        itunes("search?media=music&entity=song&limit=12&term=" + encodeURIComponent(q)),
-        itunes("search?media=music&entity=album&limit=6&term=" + encodeURIComponent(q)).catch(() => []),
-        itunes("search?media=music&entity=musicArtist&limit=4&term=" + encodeURIComponent(q)).catch(() => [])
-      ]);
+      const res = await visitorSearch(q);
       if ($("sq").value.trim() !== q) return;
-      renderMix(q, songs, albums, artists);
+      renderMix(q, res);
     } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד 😕<br><button class="pill tint" style="margin-top:12px" id="sretry">לנסות שוב</button></div>'; $("sretry").onclick = () => runSearch(q); }
     return;
   }
@@ -958,57 +954,101 @@ async function runSearch(q){
     if (!box.children.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
   } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסי שוב</div>'; }
 }
-// ---------- visitor search: songs, albums and artists, all mixed together ----------
+// ---------- visitor search: songs, artists, albums and playlists, all mixed together ----------
+// Main source: Deezer (works everywhere, has community playlists). Backup: Apple Music.
 const big = u => (u || "").replace("100x100bb", "600x600bb");
-const toTrack = it => ({id: "it" + it.trackId, name: it.trackName, artist: it.artistName, img: big(it.artworkUrl100), preview: it.previewUrl, dur: (it.trackTimeMillis || 30000)/1000});
-function playPreviews(list, k){ previewQ = list.filter(t => t.preview); previewI = Math.max(0, previewQ.indexOf(list[k])); if (!previewQ.length) return; go("player"); startPreview(); }
-function renderMix(q, songs, albums, artists){
-  const box = $("sres"); box.innerHTML = "";
-  const S = songs.filter(x => x.previewUrl).map(toTrack);
+const esc = x => String(x || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function jsonp(url, cbName = "callback"){
+  return new Promise((res, rej) => {
+    const cb = "__jp" + (++jsonpN), sc = document.createElement("script");
+    const done = () => { clearTimeout(t); delete window[cb]; sc.remove(); };
+    const t = setTimeout(() => { done(); rej(new Error("timeout")); }, 12000);
+    window[cb] = d => { done(); (d && d.error) ? rej(d.error) : res(d); };
+    sc.onerror = () => { done(); rej(new Error("load")); };
+    sc.referrerPolicy = "no-referrer";
+    sc.src = url + (url.includes("?") ? "&" : "?") + "output=jsonp&" + cbName + "=" + cb;
+    document.body.appendChild(sc);
+  });
+}
+const dz = path => jsonp("https://api.deezer.com/" + path).then(d => (d && d.data) || []);
+// normalised shapes: track {name, artist, img, preview, dur} · item {kind, src, id, name, sub, img, year}
+const dzTrack = (t, img) => ({id: "dz" + t.id, name: t.title_short || t.title, artist: (t.artist && t.artist.name) || "", img: img || (t.album && (t.album.cover_xl || t.album.cover_big)) || "", preview: t.preview, dur: t.duration || 30});
+const itTrack = it => ({id: "it" + it.trackId, name: it.trackName, artist: it.artistName, img: big(it.artworkUrl100), preview: it.previewUrl, dur: (it.trackTimeMillis || 30000)/1000});
+const fans = n => n >= 1e6 ? (n/1e6).toFixed(1).replace(".0","") + "M מעריצים" : n >= 1e3 ? Math.round(n/1e3) + "K מעריצים" : "";
+
+async function searchDeezer(q){
+  const Q = encodeURIComponent(q);
+  const [t, r, a, p] = await Promise.allSettled([dz("search?limit=15&q=" + Q), dz("search/artist?limit=4&q=" + Q), dz("search/album?limit=6&q=" + Q), dz("search/playlist?limit=4&q=" + Q)]);
+  if ([t, r, a, p].every(x => x.status === "rejected")) throw new Error("deezer");
+  const v = x => x.status === "fulfilled" ? x.value : [];
+  return {
+    S: v(t).filter(x => x.preview).map(x => dzTrack(x)),
+    R: v(r).map(x => ({kind:"artist", src:"dz", id:x.id, name:x.name, sub:fans(x.nb_fan || 0), img:x.picture_xl || x.picture_big || ""})),
+    A: v(a).map(x => ({kind:"album", src:"dz", id:x.id, name:x.title, sub:(x.artist && x.artist.name) || "", img:x.cover_xl || x.cover_big || "", year:""})),
+    P: v(p).map(x => ({kind:"playlist", src:"dz", id:x.id, name:x.title, sub:((x.user && x.user.name) || "") + (x.nb_tracks ? " · " + x.nb_tracks + " שירים" : ""), img:x.picture_xl || x.picture_big || ""}))
+  };
+}
+async function searchApple(q){
+  const Q = encodeURIComponent(q);
+  const [songs, albums, artists] = await Promise.all([
+    itunes("search?media=music&entity=song&limit=12&term=" + Q),
+    itunes("search?media=music&entity=album&limit=6&term=" + Q).catch(() => []),
+    itunes("search?media=music&entity=musicArtist&limit=4&term=" + Q).catch(() => [])
+  ]);
   const artImg = {}; songs.forEach(x => { if (!artImg[x.artistId]) artImg[x.artistId] = big(x.artworkUrl100); });
-  const A = albums.map(a => ({kind:"album", id:a.collectionId, name:a.collectionName, artist:a.artistName, img:big(a.artworkUrl100), year:(a.releaseDate || "").slice(0,4)}));
-  const R = artists.map(a => ({kind:"artist", id:a.artistId, name:a.artistName, genre:a.primaryGenreName || "", img:artImg[a.artistId] || ""}));
-  if (!S.length && !A.length && !R.length){ box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>'; return; }
-  const ql = q.toLowerCase();
-  // top result: an artist whose name matches what was typed, otherwise the first song
+  return {
+    S: songs.filter(x => x.previewUrl).map(itTrack),
+    R: artists.map(a => ({kind:"artist", src:"it", id:a.artistId, name:a.artistName, sub:a.primaryGenreName || "", img:artImg[a.artistId] || ""})),
+    A: albums.map(a => ({kind:"album", src:"it", id:a.collectionId, name:a.collectionName, sub:a.artistName, img:big(a.artworkUrl100), year:(a.releaseDate || "").slice(0,4)})),
+    P: []
+  };
+}
+async function visitorSearch(q){
+  try { return await searchDeezer(q); } catch(e){ return await searchApple(q); }
+}
+
+function playPreviews(list, k){ previewQ = list.filter(t => t.preview); previewI = Math.max(0, previewQ.indexOf(list[k])); if (!previewQ.length) return; go("player"); startPreview(); }
+const TAG = {song:'<span class="tag song">שיר</span>', album:'<span class="tag album">אלבום</span>', artist:'<span class="tag artist">זמר/ת</span>', playlist:'<span class="tag playlist">פלייליסט</span>'};
+const openItemV = (it, autoplay) => it.kind === "album" ? openAlbumPreview(it, autoplay) : it.kind === "artist" ? openArtistPreview(it, autoplay) : openPlaylistPreview(it, autoplay);
+function renderMix(q, {S, R, A, P}){
+  const box = $("sres"); box.innerHTML = "";
+  if (!S.length && !A.length && !R.length && !P.length){ box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>'; return; }
+  const ql = q.toLowerCase().trim();
   const topArtist = R.find(r => r.name.toLowerCase() === ql) || (R[0] && R[0].name.toLowerCase().startsWith(ql) && ql.length > 2 ? R[0] : null);
-  const top = topArtist ? {...topArtist} : (S[0] ? {kind:"song", t:S[0]} : (A[0] ? {...A[0]} : {...R[0]}));
+  const top = topArtist || (S[0] ? {kind:"song", t:S[0]} : (A[0] || P[0] || R[0]));
   const wrap = document.createElement("div"); wrap.className = "mix"; box.appendChild(wrap);
-  const open = it => it.kind === "album" ? openAlbumPreview(it) : it.kind === "artist" ? openArtistPreview(it) : null;
   const card = document.createElement("div"); card.className = "top tint" + (top.kind === "artist" ? " round" : "");
   const tImg = top.kind === "song" ? top.t.img : top.img, tName = top.kind === "song" ? top.t.name : top.name;
-  const tSub = top.kind === "song" ? '<span class="tag song">שיר</span>' + top.t.artist : top.kind === "album" ? '<span class="tag album">אלבום</span>' + top.artist : '<span class="tag artist">זמר/ת</span>' + top.genre;
+  const tSub = TAG[top.kind] + esc(top.kind === "song" ? top.t.artist : top.sub);
   card.innerHTML = '<span class="art' + (tImg ? "" : " avatar") + '"></span><div class="t"><b></b><span></span></div><button class="play frost" aria-label="ניגון">' + ICONS.play + '</button>';
   if (tImg) card.querySelector(".art").style.setProperty("--cv", 'url("' + tImg + '")'); else card.querySelector(".art").textContent = tName.slice(0,1);
   card.querySelector("b").textContent = tName; card.querySelector(".t span").innerHTML = tSub;
-  card.onclick = () => top.kind === "song" ? playPreviews(S, 0) : open(top);
-  card.querySelector(".play").onclick = e => { e.stopPropagation(); if (top.kind === "song") playPreviews(S, 0); else if (top.kind === "artist") openArtistPreview(top, true); else openAlbumPreview(top, true); };
+  card.onclick = () => top.kind === "song" ? playPreviews(S, 0) : openItemV(top);
+  card.querySelector(".play").onclick = e => { e.stopPropagation(); top.kind === "song" ? playPreviews(S, 0) : openItemV(top, true); };
   wrap.appendChild(card);
-  // everything else, woven together: song, song, album, song, artist, …
-  const songsLeft = S.filter(t => !(top.kind === "song" && t === top.t));
-  const albumsLeft = A.filter(a => !(top.kind === "album" && a.id === top.id)), artistsLeft = R.filter(a => !(top.kind === "artist" && a.id === top.id));
-  const mixed = []; let si = 0, ai = 0, ri = 0;
-  while (si < songsLeft.length || ai < albumsLeft.length || ri < artistsLeft.length){
-    for (let k = 0; k < 2 && si < songsLeft.length; k++) mixed.push({kind:"song", t:songsLeft[si++]});
-    if (ai < albumsLeft.length) mixed.push(albumsLeft[ai++]);
-    if (si < songsLeft.length) mixed.push({kind:"song", t:songsLeft[si++]});
-    if (ri < artistsLeft.length) mixed.push(artistsLeft[ri++]);
+  // everything else woven together: song, song, artist, album, song, playlist, …
+  const songs = S.filter(t => !(top.kind === "song" && t === top.t));
+  const others = [R, A, P].map(list => list.filter(x => x !== top));
+  const mixed = []; let si = 0, oi = [0, 0, 0], turn = 0;
+  while (si < songs.length || others.some((l, i) => oi[i] < l.length)){
+    for (let k = 0; k < 2 && si < songs.length; k++) mixed.push({kind:"song", t:songs[si++]});
+    for (let tries = 0; tries < 3; tries++){ const i = (turn + tries) % 3; if (oi[i] < others[i].length){ mixed.push(others[i][oi[i]++]); turn = i + 1; break; } }
   }
   const ul = document.createElement("ul"); ul.className = "tint"; wrap.appendChild(ul);
   mixed.forEach(it => {
     const li = document.createElement("li");
     const img = it.kind === "song" ? it.t.img : it.img, name = it.kind === "song" ? it.t.name : it.name;
-    const sub = it.kind === "song" ? '<span class="tag song">שיר</span>' + esc(it.t.artist) : it.kind === "album" ? '<span class="tag album">אלבום</span>' + esc(it.artist) + (it.year ? " · " + it.year : "") : '<span class="tag artist">זמר/ת</span>' + esc(it.genre);
+    const sub = TAG[it.kind] + esc(it.kind === "song" ? it.t.artist : it.sub) + (it.year ? " · " + it.year : "");
     if (it.kind === "artist") li.className = "round";
     li.innerHTML = '<span class="art' + (img ? "" : " avatar") + '"></span><div class="t"><b></b><span>' + sub + '</span></div>';
     if (img) li.querySelector(".art").style.setProperty("--cv", 'url("' + img + '")'); else li.querySelector(".art").textContent = name.slice(0,1);
     li.querySelector("b").textContent = name;
-    li.onclick = () => it.kind === "song" ? playPreviews(S, S.indexOf(it.t)) : open(it);
+    li.onclick = () => it.kind === "song" ? playPreviews(S, S.indexOf(it.t)) : openItemV(it);
     ul.appendChild(li);
   });
 }
-const esc = x => String(x || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-// album / artist page for visitors (30-second previews)
+
+// album / artist / playlist page for visitors (30-second previews)
 let previewRows = null;
 function showPreviewList(meta, rows, autoplay){
   previewRows = rows; openItem = null;
@@ -1025,28 +1065,39 @@ function showPreviewList(meta, rows, autoplay){
   });
   if (autoplay && rows.length) playPreviews(rows, 0); else go("list");
 }
+function loadingList(autoplay){ $("tracks").innerHTML = ""; $("artistAlbums").hidden = true; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list"); }
 async function openAlbumPreview(a, autoplay){
-  listBack = null; $("artistAlbums").hidden = true;
-  $("tracks").innerHTML = ""; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
-  const r = await itunes("lookup?entity=song&id=" + a.id).catch(() => []);
-  showPreviewList({name: a.name, sub: "אלבום · " + a.artist + (a.year ? " · " + a.year : ""), img: a.img}, r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack), autoplay);
+  listBack = null; loadingList(autoplay);
+  let rows = [];
+  if (a.src === "dz") rows = (await dz("album/" + a.id + "/tracks?limit=100").catch(() => [])).filter(t => t.preview).map(t => dzTrack(t, a.img));
+  else rows = (await itunes("lookup?entity=song&id=" + a.id).catch(() => [])).filter(x => x.wrapperType === "track" && x.previewUrl).map(itTrack);
+  showPreviewList({name: a.name, sub: "אלבום · " + a.sub + (a.year ? " · " + a.year : ""), img: a.img}, rows, autoplay);
+}
+async function openPlaylistPreview(p, autoplay){
+  listBack = null; loadingList(autoplay);
+  const rows = (await dz("playlist/" + p.id + "/tracks?limit=100").catch(() => [])).filter(t => t.preview).map(t => dzTrack(t));
+  showPreviewList({name: p.name, sub: "פלייליסט · " + p.sub, img: p.img}, rows, autoplay);
 }
 let listBack = null;   // album opened from an artist page -> "back" returns to the artist
 async function openArtistPreview(a, autoplay){
-  listBack = null;
-  $("tracks").innerHTML = ""; $("artistAlbums").hidden = true; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
-  const [r, al] = await Promise.all([
-    itunes("lookup?entity=song&limit=25&id=" + a.id).catch(() => []),
-    itunes("lookup?entity=album&limit=50&id=" + a.id).catch(() => [])
-  ]);
-  const rows = r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack);
-  showPreviewList({name: a.name, sub: "השירים הכי מוכרים" + (a.genre ? " · " + a.genre : ""), img: a.img || (rows[0] && rows[0].img) || ""}, rows, autoplay);
+  listBack = null; loadingList(autoplay);
+  let rows = [], albums = [];
+  if (a.src === "dz"){
+    const [top, al] = await Promise.all([dz("artist/" + a.id + "/top?limit=25").catch(() => []), dz("artist/" + a.id + "/albums?limit=100").catch(() => [])]);
+    rows = top.filter(t => t.preview).map(t => dzTrack(t));
+    albums = al.filter(x => x.record_type !== "single" || al.length < 6)
+      .map(x => ({kind:"album", src:"dz", id:x.id, name:x.title, sub:a.name, img:x.cover_xl || x.cover_big || "", year:(x.release_date || "").slice(0,4), date:x.release_date || ""}));
+  } else {
+    const [r, al] = await Promise.all([itunes("lookup?entity=song&limit=25&id=" + a.id).catch(() => []), itunes("lookup?entity=album&limit=50&id=" + a.id).catch(() => [])]);
+    rows = r.filter(x => x.wrapperType === "track" && x.previewUrl).map(itTrack);
+    albums = al.filter(x => x.wrapperType === "collection" && x.collectionName)
+      .map(x => ({kind:"album", src:"it", id:x.collectionId, name:x.collectionName, sub:x.artistName, img:big(x.artworkUrl100), year:(x.releaseDate || "").slice(0,4), date:x.releaseDate || ""}));
+  }
+  showPreviewList({name: a.name, sub: "השירים הכי מוכרים" + (a.sub ? " · " + a.sub : ""), img: a.img || (rows[0] && rows[0].img) || ""}, rows, autoplay);
   // all their albums, newest first, in a row you scroll sideways
   const seen = new Set();
-  const albums = al.filter(x => x.wrapperType === "collection" && x.collectionName)
-    .sort((x, y) => (y.releaseDate || "").localeCompare(x.releaseDate || ""))
-    .filter(x => { const k = x.collectionName.replace(/\s*[\(\[-].*$/, "").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
-    .map(x => ({kind:"album", id:x.collectionId, name:x.collectionName, artist:x.artistName, img:big(x.artworkUrl100), year:(x.releaseDate || "").slice(0,4)}));
+  albums = albums.sort((x, y) => y.date.localeCompare(x.date))
+    .filter(x => { const k = x.name.replace(/\s*[\(\[-].*$/, "").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
   const row = $("arow"); row.innerHTML = "";
   albums.forEach(alb => {
     const c = document.createElement("div"); c.className = "acard";
