@@ -470,7 +470,7 @@ Script.complete();
 const CLIENT_ID = "e84831b71546426d8d01ef50ba21ee37";
 const REDIRECT = /(^|\.)mikalandau11\.github\.io$/i.test(location.hostname) ? "https://mikalandau11.github.io/patefon/"
   : location.origin + location.pathname.replace(/index\.html$/, "").replace(/([^/])$/, "$1/");
-const VERSION = "21";
+const VERSION = "22";
 const SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state user-read-recently-played playlist-read-private playlist-read-collaborative user-library-read";
 const SCOPE_V = "3";
 // ===================
@@ -888,6 +888,10 @@ async function openList(p){
     ul.appendChild(li);
   });
 }
+async function playUris(uris, k, shuffle){
+  if (shuffle !== undefined) await cmd("PUT", "/me/player/shuffle?state=" + (shuffle ? "true" : "false"));
+  if (await cmd("PUT", "/me/player/play", {uris, offset: {position: k || 0}})){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
+}
 async function playContext(ctx, trackUri, shuffle){
   if (!connected){ login(); return; }
   if (shuffle !== null){ await cmd("PUT", "/me/player/shuffle?state=" + (shuffle ? "true" : "false")); }
@@ -943,16 +947,18 @@ async function runSearch(q){
     return;
   }
   try {
-    const d = await getJSON("/search?type=track,album,playlist&limit=10&q=" + encodeURIComponent(q));
-    if ($("sq").value.trim() !== q) return; box.innerHTML = "";
-    const tr = ((d.tracks && d.tracks.items) || []).filter(Boolean);
-    const al = ((d.albums && d.albums.items) || []).filter(Boolean);
-    const pl = ((d.playlists && d.playlists.items) || []).filter(Boolean);
-    group("שירים", tr.map(t => row(pick(t.album.images, 2), t.name, t.artists.map(a => a.name).join(", ") + " · " + fmt(t.duration_ms/1000), () => playContext(t.album.uri, t.uri, null))));
-    group("אלבומים", al.map(a => row(pick(a.images, 2), a.name, "אלבום · " + a.artists.map(z => z.name).join(", "), () => openList({kind:"album", id:a.id, uri:a.uri, name:a.name, sub:a.artists.map(z => z.name).join(", "), img:pick(a.images, 1), big:pick(a.images), total:a.total_tracks}))));
-    group("פלייליסטים", pl.map(p => row(pick(p.images, 0), p.name, "פלייליסט · " + ((p.owner && p.owner.display_name) || ""), () => openList({kind:"playlist", id:p.id, uri:p.uri, name:p.name, sub:(p.owner && p.owner.display_name) || "", img:pick(p.images, 0), big:pick(p.images), total:(p.tracks && p.tracks.total) || 0}))));
-    if (!box.children.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
-  } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסי שוב</div>'; }
+    const d = await getJSON("/search?type=track,artist,album,playlist&limit=10&q=" + encodeURIComponent(q));
+    if ($("sq").value.trim() !== q) return;
+    const items = k => ((d[k] && d[k].items) || []).filter(Boolean);
+    const S = items("tracks").map(t => ({id: t.id, uri: t.uri, ctx: t.album && t.album.uri, name: t.name, artist: t.artists.map(a => a.name).join(", ") + " · " + fmt(t.duration_ms/1000), img: pick(t.album && t.album.images, 1), dur: t.duration_ms/1000}));
+    const R = items("artists").map(a => ({kind:"artist", src:"sp", id:a.id, uri:a.uri, name:a.name, sub:(a.followers && a.followers.total) ? fans(a.followers.total).replace("מעריצים","עוקבים") : ((a.genres || [])[0] || ""), img:pick(a.images, 1)}));
+    const A = items("albums").map(a => ({kind:"album", src:"sp", id:a.id, uri:a.uri, name:a.name, sub:a.artists.map(z => z.name).join(", "), img:pick(a.images, 1), big:pick(a.images), total:a.total_tracks, year:(a.release_date || "").slice(0,4)}));
+    const P = items("playlists").map(x => ({kind:"playlist", src:"sp", id:x.id, uri:x.uri, name:x.name, sub:(x.owner && x.owner.display_name) || "", img:pick(x.images, 0), big:pick(x.images), total:(x.tracks && x.tracks.total) || (x.items && x.items.total) || 0}));
+    renderMix(q, {S, R, A, P}, {
+      song: (list, k) => playContext(list[k].ctx, list[k].uri, null),
+      open: (it, autoplay) => it.kind === "artist" ? openArtistSpotify(it, autoplay) : (autoplay ? playContext(it.uri, null, false) : openList({...it, sub: it.sub}))
+    });
+  } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד 😕<br><button class="pill tint" style="margin-top:12px" id="sretry">לנסות שוב</button></div>'; $("sretry").onclick = () => runSearch(q); }
 }
 // ---------- visitor search: songs, artists, albums and playlists, all mixed together ----------
 // Main source: Deezer (works everywhere, has community playlists). Backup: Apple Music.
@@ -1010,7 +1016,8 @@ async function visitorSearch(q){
 function playPreviews(list, k){ previewQ = list.filter(t => t.preview); previewI = Math.max(0, previewQ.indexOf(list[k])); if (!previewQ.length) return; go("player"); startPreview(); }
 const TAG = {song:'<span class="tag song">שיר</span>', album:'<span class="tag album">אלבום</span>', artist:'<span class="tag artist">זמר/ת</span>', playlist:'<span class="tag playlist">פלייליסט</span>'};
 const openItemV = (it, autoplay) => it.kind === "album" ? openAlbumPreview(it, autoplay) : it.kind === "artist" ? openArtistPreview(it, autoplay) : openPlaylistPreview(it, autoplay);
-function renderMix(q, {S, R, A, P}){
+function renderMix(q, {S, R, A, P}, h){
+  h = h || {song: playPreviews, open: openItemV};
   const box = $("sres"); box.innerHTML = "";
   if (!S.length && !A.length && !R.length && !P.length){ box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>'; return; }
   const ql = q.toLowerCase().trim();
@@ -1023,8 +1030,8 @@ function renderMix(q, {S, R, A, P}){
   card.innerHTML = '<span class="art' + (tImg ? "" : " avatar") + '"></span><div class="t"><b></b><span></span></div><button class="play frost" aria-label="ניגון">' + ICONS.play + '</button>';
   if (tImg) card.querySelector(".art").style.setProperty("--cv", 'url("' + tImg + '")'); else card.querySelector(".art").textContent = tName.slice(0,1);
   card.querySelector("b").textContent = tName; card.querySelector(".t span").innerHTML = tSub;
-  card.onclick = () => top.kind === "song" ? playPreviews(S, 0) : openItemV(top);
-  card.querySelector(".play").onclick = e => { e.stopPropagation(); top.kind === "song" ? playPreviews(S, 0) : openItemV(top, true); };
+  card.onclick = () => top.kind === "song" ? h.song(S, 0) : h.open(top);
+  card.querySelector(".play").onclick = e => { e.stopPropagation(); top.kind === "song" ? h.song(S, 0) : h.open(top, true); };
   wrap.appendChild(card);
   // everything else woven together: song, song, artist, album, song, playlist, …
   const songs = S.filter(t => !(top.kind === "song" && t === top.t));
@@ -1043,7 +1050,7 @@ function renderMix(q, {S, R, A, P}){
     li.innerHTML = '<span class="art' + (img ? "" : " avatar") + '"></span><div class="t"><b></b><span>' + sub + '</span></div>';
     if (img) li.querySelector(".art").style.setProperty("--cv", 'url("' + img + '")'); else li.querySelector(".art").textContent = name.slice(0,1);
     li.querySelector("b").textContent = name;
-    li.onclick = () => it.kind === "song" ? playPreviews(S, S.indexOf(it.t)) : openItemV(it);
+    li.onclick = () => it.kind === "song" ? h.song(S, S.indexOf(it.t)) : h.open(it);
     ul.appendChild(li);
   });
 }
@@ -1077,6 +1084,42 @@ async function openPlaylistPreview(p, autoplay){
   listBack = null; loadingList(autoplay);
   const rows = (await dz("playlist/" + p.id + "/tracks?limit=100").catch(() => [])).filter(t => t.preview).map(t => dzTrack(t));
   showPreviewList({name: p.name, sub: "פלייליסט · " + p.sub, img: p.img}, rows, autoplay);
+}
+async function openArtistSpotify(a, autoplay){
+  listBack = null; previewRows = null; openItem = {kind:"artist", uri:a.uri};
+  $("phCover").style.setProperty("--cv", 'url("' + a.img + '")'); $("phName").textContent = a.name; $("phSub").textContent = "השירים הכי מוכרים" + (a.sub ? " · " + a.sub : "");
+  loadingList(true); go("list");
+  let tracks = [], albums = [];
+  try { tracks = (await getJSON("/artists/" + a.id + "/top-tracks?market=from_token")).tracks || []; } catch(e){}
+  if (!tracks.length){ try { const d = await getJSON("/search?type=track&limit=20&q=" + encodeURIComponent('artist:"' + a.name + '"')); tracks = ((d.tracks && d.tracks.items) || []).filter(t => t && t.artists.some(x => x.id === a.id)); } catch(e){} }
+  try { albums = (await getJSON("/artists/" + a.id + "/albums?include_groups=album,single&limit=50")).items || []; } catch(e){}
+  if (!albums.length){ try { const d = await getJSON("/search?type=album&limit=20&q=" + encodeURIComponent('artist:"' + a.name + '"')); albums = ((d.albums && d.albums.items) || []).filter(x => x && x.artists.some(z => z.id === a.id)); } catch(e){} }
+  if (!(openItem && openItem.uri === a.uri)) return;
+  if (!a.img && tracks[0]) $("phCover").style.setProperty("--cv", 'url("' + pick(tracks[0].album.images) + '")');
+  const uris = tracks.map(t => t.uri), ul = $("tracks"); ul.innerHTML = "";
+  $("listMsg").textContent = tracks.length ? "" : "לא מצאתי שירים של הזמר/ת";
+  tracks.forEach((t, k) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="n">' + (k+1) + '</span><span class="art"></span><div class="t"><b></b><span></span></div><span class="dur"></span>';
+    li.querySelector(".art").style.setProperty("--cv", 'url("' + pick(t.album.images, 2) + '")');
+    li.querySelector("b").textContent = t.name; li.querySelector(".t span").textContent = t.album.name; li.querySelector(".dur").textContent = fmt(t.duration_ms/1000);
+    li.onclick = () => playUris(uris, k);
+    ul.appendChild(li);
+  });
+  const seen = new Set();
+  const list = albums.sort((x, y) => (y.release_date || "").localeCompare(x.release_date || ""))
+    .filter(x => { const k = x.name.replace(/\s*[\(\[-].*$/, "").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  const row = $("arow"); row.innerHTML = "";
+  list.forEach(x => {
+    const c = document.createElement("div"); c.className = "acard";
+    c.innerHTML = '<div class="c"></div><b></b><span></span>';
+    c.querySelector(".c").style.setProperty("--cv", 'url("' + pick(x.images, 1) + '")');
+    c.querySelector("b").textContent = x.name; c.querySelector("span").textContent = (x.release_date || "").slice(0,4);
+    c.onclick = () => { openList({kind:"album", id:x.id, uri:x.uri, name:x.name, sub:a.name, img:pick(x.images, 1), big:pick(x.images), total:x.total_tracks}); listBack = () => openArtistSpotify(a); };
+    row.appendChild(c);
+  });
+  $("artistAlbums").hidden = !list.length; row.scrollLeft = 0;
+  if (autoplay && uris.length) playUris(uris, 0);
 }
 let listBack = null;   // album opened from an artist page -> "back" returns to the artist
 async function openArtistPreview(a, autoplay){
