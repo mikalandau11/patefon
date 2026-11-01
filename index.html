@@ -621,12 +621,16 @@ async function poll(){
         idle = false;
         const it = d.item;
         const t = {id: it.id, uri: it.uri, name: it.name, artist: it.artists.map(a => a.name).join(", "), img: pick(it.album.images), dur: it.duration_ms/1000};
-        const fresh = cur && cur.id === t.id;
+        let lastId = null; try { lastId = (JSON.parse(store.get("last") || "null") || {}).id; } catch(e){}
         showTrack(t); store.set("last", JSON.stringify(t));
         len = it.duration_ms/1000; pos = (d.progress_ms || 0)/1000;
-        // Spotify woke up and restarted the song from 0 -> jump back to where she stopped
-        if (wakePending && fresh && pos < 3 && savedPos > 5 && savedPos < len - 2){ wakePending = false; const to = savedPos; pos = to; cmd("PUT", "/me/player/seek?position_ms=" + Math.round(to*1000)); }
-        else if (pos > 3) wakePending = false;
+        // after waking Spotify: if it restarted the same song from the beginning, jump to where she stopped
+        // (plus the seconds it has played since), even if she only comes back to the site a while later
+        const waking = Date.now() - (+(store.get("wake") || 0)) < 15*60*1000;
+        if (waking && lastId === t.id && savedPos > 5 && pos + 3 < savedPos && pos < 90){
+          store.del("wake"); const to = Math.min(savedPos + pos, len - 2); pos = to;
+          cmd("PUT", "/me/player/seek?position_ms=" + Math.round(to*1000));
+        } else if (waking && (lastId !== t.id || pos + 3 >= savedPos)) store.del("wake");
         savedPos = pos; store.set("pos", String(pos));
         playing = !!d.is_playing; renderPlaying(); setWake(false); return;
       }
@@ -653,7 +657,7 @@ function setWake(on){
   if (show) $("sub").textContent = "";
 }
 // open the Spotify app itself (not the song link): the app remembers the song, the playlist and the exact second you stopped at
-$("wake").onclick = e => { e.stopPropagation(); savedPos = pos || savedPos; store.set("pos", String(savedPos)); wakePending = true; location.href = "spotify:"; };
+$("wake").onclick = e => { e.stopPropagation(); savedPos = pos || savedPos; store.set("pos", String(savedPos)); store.set("wake", String(Date.now())); location.href = "spotify:"; };
 document.addEventListener("visibilitychange", () => { if (!document.hidden && connected) { poll(); setTimeout(poll, 1500); } });
 
 // ---------- controls ----------
