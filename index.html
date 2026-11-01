@@ -157,6 +157,20 @@ button:focus{outline:none}
 .s-group{width:min(92vw,440px)}
 .s-group h4{margin:8px 6px 6px;font-size:.85rem;color:#ffffffb0;font-weight:700}
 .s-group ul{list-style:none;margin:0;padding:6px;border-radius:22px;background:linear-gradient(180deg,#0000003a,#00000052)!important}
+.mix{width:min(92vw,440px);display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;gap:16px;padding:16px;border-radius:26px;cursor:pointer;background:linear-gradient(180deg,#0000002e,#0000004a)!important}
+.top .art{width:96px;height:96px;border-radius:10px;box-shadow:0 10px 24px #0008}
+.top.round .art{border-radius:50%}
+.top .t b{font-family:"Chewy","Fredoka",system-ui,sans-serif;font-size:1.45rem;font-weight:700;white-space:normal;line-height:1.15}
+.top .play{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;flex:none}
+.top .play svg{width:24px;height:24px;fill:#111}
+.mix ul{list-style:none;margin:0;padding:6px;border-radius:22px;background:linear-gradient(180deg,#0000003a,#00000052)!important}
+.mix li{display:flex;align-items:center;gap:12px;padding:9px 8px;border-radius:14px;cursor:pointer}
+.mix li:hover,.mix li:active{background:#ffffff1a}
+.mix li.round .art{border-radius:50%}
+.t span.tag,.tag{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-inline-end:6px;background:#ffffff26;color:#fff;vertical-align:1px}
+.tag.song{background:#ffffff30}.tag.album{background:#ffd16655;color:#fff}.tag.artist{background:#7cc8ff55}
+.avatar{display:grid;place-items:center;font-weight:800;font-size:1.1rem;color:#fff;background:linear-gradient(135deg,#7b5cff,#ff6fa8)!important}
 .s-empty{color:#ffffffa0;text-align:center;margin-top:30px;line-height:1.6}
 
 /* ---------- sheet (widget + home screen) ---------- */
@@ -191,7 +205,7 @@ button:focus{outline:none}
     <div class="timebub frost" id="timebub"></div>
   </div>
   <div class="info"><h1 id="title"></h1><p id="artist"></p><small id="sub"></small></div>
-  <button class="wake frost" id="wake" hidden>▶ לחצו כאן כדי להפעיל את השיר דרך ספוטיפיי<small>אחרי שהשיר מתחיל, לוחצים על החץ הקטן בפינה למעלה כדי לחזור לכאן</small></button>
+  <button class="wake frost" id="wake" hidden>▶ לחצו כאן כדי להפעיל את השיר דרך ספוטיפיי<small>אחרי שהשיר מתחיל, חזרו לפה דרך החץ בפינה למעלה🤍</small></button>
   <button class="connect" id="connect" hidden>התחברות לספוטיפיי</button>
   <button class="vsearch tint" id="vsearch" hidden><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 6 12l4.3 4.3-1.5 1.5-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>חיפוש שיר</button>
 </section>
@@ -582,9 +596,12 @@ let lastRecentTry = 0;
 async function poll(){
   if (!connected || sliding) return;
   try {
-    const r = await api("/me/player/currently-playing");
+    const r = await api("/me/player?additional_types=track");
     if (r.status === 200){
       const d = await r.json();
+      if (d && d.device && !(d.item && d.item.type === "track") && cur){   // connected but nothing to show: just paused
+        playing = false; renderPlaying(); setWake(false); return;
+      }
       if (d && d.item && d.item.type === "track"){
         idle = false;
         const it = d.item;
@@ -804,7 +821,7 @@ segInit($("libSeg"), k => { kind = k; loadLibrary(); });
 // ---------- album / playlist page ----------
 let openItem = null;
 async function openList(p){
-  openItem = p;
+  openItem = p; previewRows = null;
   $("phCover").style.setProperty("--cv", 'url("' + (p.big || p.img) + '")'); $("phName").textContent = p.name;
   $("phSub").textContent = (p.kind === "album" ? "אלבום" : "פלייליסט") + (p.sub ? " · " + p.sub : "") + (p.total ? " · " + p.total + " שירים" : "");
   const ul = $("tracks"); ul.innerHTML = ""; $("listMsg").textContent = "טוענת…";
@@ -839,8 +856,8 @@ async function playContext(ctx, trackUri, shuffle){
   if (await cmd("PUT", "/me/player/play", body)){ idle = false; go("player"); playing = true; renderPlaying(); setTimeout(poll, 900); }
 }
 $("back").onclick = e => { e.stopPropagation(); go(prevView === "search" ? "search" : (connected ? "library" : "player")); };
-$("playAll").onclick = () => playContext(openItem.uri, null, false);
-$("shuffle").onclick = () => playContext(openItem.uri, null, true);
+$("playAll").onclick = () => { if (!openItem && previewRows) playPreviews(previewRows, 0); else playContext(openItem.uri, null, false); };
+$("shuffle").onclick = () => { if (!openItem && previewRows){ const sh = [...previewRows].sort(() => Math.random() - .5); playPreviews(sh, 0); } else playContext(openItem.uri, null, true); };
 
 // ---------- search ----------
 let searchFrom = "library", sT;
@@ -857,10 +874,13 @@ async function runSearch(q){
   const box = $("sres");
   if (!connected){
     try {
-      const res = await itunes(q); if ($("sq").value.trim() !== q) return; box.innerHTML = "";
-      const list = res.map(it => ({id: "it" + it.trackId, name: it.trackName, artist: it.artistName, img: (it.artworkUrl100 || "").replace("100x100bb", "600x600bb"), preview: it.previewUrl}));
-      group("שירים", list.map((t, k) => row(t.img, t.name, t.artist, () => { previewQ = list; previewI = k; go("player"); startPreview(); })));
-      if (!list.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
+      const [songs, albums, artists] = await Promise.all([
+        itunes("search?media=music&entity=song&limit=12&term=" + encodeURIComponent(q)),
+        itunes("search?media=music&entity=album&limit=6&term=" + encodeURIComponent(q)).catch(() => []),
+        itunes("search?media=music&entity=musicArtist&limit=4&term=" + encodeURIComponent(q)).catch(() => [])
+      ]);
+      if ($("sq").value.trim() !== q) return;
+      renderMix(q, songs, albums, artists);
     } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסו שוב</div>'; }
     return;
   }
@@ -876,6 +896,84 @@ async function runSearch(q){
     if (!box.children.length) box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>';
   } catch(e){ box.innerHTML = '<div class="s-empty">החיפוש לא עבד, נסי שוב</div>'; }
 }
+// ---------- visitor search: songs, albums and artists, all mixed together ----------
+const big = u => (u || "").replace("100x100bb", "600x600bb");
+const toTrack = it => ({id: "it" + it.trackId, name: it.trackName, artist: it.artistName, img: big(it.artworkUrl100), preview: it.previewUrl, dur: (it.trackTimeMillis || 30000)/1000});
+function playPreviews(list, k){ previewQ = list.filter(t => t.preview); previewI = Math.max(0, previewQ.indexOf(list[k])); if (!previewQ.length) return; go("player"); startPreview(); }
+function renderMix(q, songs, albums, artists){
+  const box = $("sres"); box.innerHTML = "";
+  const S = songs.filter(x => x.previewUrl).map(toTrack);
+  const artImg = {}; songs.forEach(x => { if (!artImg[x.artistId]) artImg[x.artistId] = big(x.artworkUrl100); });
+  const A = albums.map(a => ({kind:"album", id:a.collectionId, name:a.collectionName, artist:a.artistName, img:big(a.artworkUrl100), year:(a.releaseDate || "").slice(0,4)}));
+  const R = artists.map(a => ({kind:"artist", id:a.artistId, name:a.artistName, genre:a.primaryGenreName || "", img:artImg[a.artistId] || ""}));
+  if (!S.length && !A.length && !R.length){ box.innerHTML = '<div class="s-empty">לא נמצא כלום</div>'; return; }
+  const ql = q.toLowerCase();
+  // top result: an artist whose name matches what was typed, otherwise the first song
+  const topArtist = R.find(r => r.name.toLowerCase() === ql) || (R[0] && R[0].name.toLowerCase().startsWith(ql) && ql.length > 2 ? R[0] : null);
+  const top = topArtist ? {...topArtist} : (S[0] ? {kind:"song", t:S[0]} : (A[0] ? {...A[0]} : {...R[0]}));
+  const wrap = document.createElement("div"); wrap.className = "mix"; box.appendChild(wrap);
+  const open = it => it.kind === "album" ? openAlbumPreview(it) : it.kind === "artist" ? openArtistPreview(it) : null;
+  const card = document.createElement("div"); card.className = "top tint" + (top.kind === "artist" ? " round" : "");
+  const tImg = top.kind === "song" ? top.t.img : top.img, tName = top.kind === "song" ? top.t.name : top.name;
+  const tSub = top.kind === "song" ? '<span class="tag song">שיר</span>' + top.t.artist : top.kind === "album" ? '<span class="tag album">אלבום</span>' + top.artist : '<span class="tag artist">זמר/ת</span>' + top.genre;
+  card.innerHTML = '<span class="art' + (tImg ? "" : " avatar") + '"></span><div class="t"><b></b><span></span></div><button class="play frost" aria-label="ניגון">' + ICONS.play + '</button>';
+  if (tImg) card.querySelector(".art").style.setProperty("--cv", 'url("' + tImg + '")'); else card.querySelector(".art").textContent = tName.slice(0,1);
+  card.querySelector("b").textContent = tName; card.querySelector(".t span").innerHTML = tSub;
+  card.onclick = () => top.kind === "song" ? playPreviews(S, 0) : open(top);
+  card.querySelector(".play").onclick = e => { e.stopPropagation(); if (top.kind === "song") playPreviews(S, 0); else if (top.kind === "artist") openArtistPreview(top, true); else openAlbumPreview(top, true); };
+  wrap.appendChild(card);
+  // everything else, woven together: song, song, album, song, artist, …
+  const songsLeft = S.filter(t => !(top.kind === "song" && t === top.t));
+  const albumsLeft = A.filter(a => !(top.kind === "album" && a.id === top.id)), artistsLeft = R.filter(a => !(top.kind === "artist" && a.id === top.id));
+  const mixed = []; let si = 0, ai = 0, ri = 0;
+  while (si < songsLeft.length || ai < albumsLeft.length || ri < artistsLeft.length){
+    for (let k = 0; k < 2 && si < songsLeft.length; k++) mixed.push({kind:"song", t:songsLeft[si++]});
+    if (ai < albumsLeft.length) mixed.push(albumsLeft[ai++]);
+    if (si < songsLeft.length) mixed.push({kind:"song", t:songsLeft[si++]});
+    if (ri < artistsLeft.length) mixed.push(artistsLeft[ri++]);
+  }
+  const ul = document.createElement("ul"); ul.className = "tint"; wrap.appendChild(ul);
+  mixed.forEach(it => {
+    const li = document.createElement("li");
+    const img = it.kind === "song" ? it.t.img : it.img, name = it.kind === "song" ? it.t.name : it.name;
+    const sub = it.kind === "song" ? '<span class="tag song">שיר</span>' + esc(it.t.artist) : it.kind === "album" ? '<span class="tag album">אלבום</span>' + esc(it.artist) + (it.year ? " · " + it.year : "") : '<span class="tag artist">זמר/ת</span>' + esc(it.genre);
+    if (it.kind === "artist") li.className = "round";
+    li.innerHTML = '<span class="art' + (img ? "" : " avatar") + '"></span><div class="t"><b></b><span>' + sub + '</span></div>';
+    if (img) li.querySelector(".art").style.setProperty("--cv", 'url("' + img + '")'); else li.querySelector(".art").textContent = name.slice(0,1);
+    li.querySelector("b").textContent = name;
+    li.onclick = () => it.kind === "song" ? playPreviews(S, S.indexOf(it.t)) : open(it);
+    ul.appendChild(li);
+  });
+}
+const esc = x => String(x || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// album / artist page for visitors (30-second previews)
+let previewRows = null;
+function showPreviewList(meta, rows, autoplay){
+  previewRows = rows; openItem = null;
+  $("phCover").style.setProperty("--cv", 'url("' + meta.img + '")'); $("phName").textContent = meta.name; $("phSub").textContent = meta.sub;
+  const ul = $("tracks"); ul.innerHTML = "";
+  $("listMsg").textContent = rows.length ? "" : "אין כאן שירים להשמעה";
+  rows.forEach((t, k) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="n">' + (k+1) + '</span><span class="art"></span><div class="t"><b></b><span></span></div><span class="dur"></span>';
+    li.querySelector(".art").style.setProperty("--cv", 'url("' + t.img + '")');
+    li.querySelector("b").textContent = t.name; li.querySelector(".t span").textContent = t.artist; li.querySelector(".dur").textContent = fmt(t.dur);
+    li.onclick = () => playPreviews(rows, k);
+    ul.appendChild(li);
+  });
+  if (autoplay && rows.length) playPreviews(rows, 0); else go("list");
+}
+async function openAlbumPreview(a, autoplay){
+  $("tracks").innerHTML = ""; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
+  const r = await itunes("lookup?entity=song&id=" + a.id).catch(() => []);
+  showPreviewList({name: a.name, sub: "אלבום · " + a.artist + (a.year ? " · " + a.year : ""), img: a.img}, r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack), autoplay);
+}
+async function openArtistPreview(a, autoplay){
+  $("tracks").innerHTML = ""; $("listMsg").textContent = "טוענת…"; if (!autoplay) go("list");
+  const r = await itunes("lookup?entity=song&limit=25&id=" + a.id).catch(() => []);
+  const rows = r.filter(x => x.wrapperType === "track" && x.previewUrl).map(toTrack);
+  showPreviewList({name: a.name, sub: "השירים הכי מוכרים" + (a.genre ? " · " + a.genre : ""), img: a.img || (rows[0] && rows[0].img) || ""}, rows, autoplay);
+}
 let jsonpN = 0;
 function itunes(term){
   return new Promise((res, rej) => {
@@ -884,7 +982,7 @@ function itunes(term){
     const t = setTimeout(() => { done(); rej(); }, 8000);
     window[cb] = d => { done(); res((d && d.results) || []); };
     sc.onerror = () => { done(); rej(); };
-    sc.src = "https://itunes.apple.com/search?media=music&entity=song&limit=12&term=" + encodeURIComponent(term) + "&callback=" + cb;
+    sc.src = "https://itunes.apple.com/" + term + (term.includes("?") ? "&" : "?") + "country=IL&callback=" + cb;
     document.body.appendChild(sc);
   });
 }
